@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Planning Lembur - LINFOX</title>
+
+
+    <!-- =====================================================
+         SUPABASE CDN
+    ====================================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+    <!-- =====================================================
+         CHART JS
+    ====================================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+    <!-- =====================================================
+         JSPDF
+    ====================================================== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+
+    <!-- =====================================================
+         CSS
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     SIDEBAR
+====================================================== -->
+
+<aside class="sidebar">
+
+    <div class="brand">
+
+        <div class="brand-logo">
+
+            <img
+                src="Logo.png"
+                alt="LINFOX Logo"
+            >
+
+        </div>
+
+        <div class="brand-info">
+
+            <strong>
+                PT LINFOX LOGISTICS INDONESIA
+            </strong>
+
+        </div>
+
+    </div>
+
+
+    <div class="menu">
+
+
+        <!-- =================================================
+             DASHBOARD
+        ================================================== -->
+
+        <button
+            type="button"
+            class="menu-item active"
+            onclick="showPage('dashboard', this)"
+        >
+
+            <span class="menu-icon">
+
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+
+                    <rect
+                        x="3"
+                        y="3"
+                        width="7"
+                        height="7"
+                        rx="1.5"
+                    ></rect>
+
+                    <rect
+                        x="14"
+                        y="3"
+                        width="7"
+                        height="7"
+                        rx="1.5"
+                    ></rect>
+
+                    <rect
+                        x="3"
+                        y="14"
+                        width="7"
+                        height="7"
+                        rx="1.5"
+                    ></rect>
+
+                    <rect
+                        x="14"
+                        y="14"
+                        width="7"
+                        height="7"
+                        rx="1.5"
+                    ></rect>
+
+                </svg>
+
+            </span>
+
+            <span>
+                Dashboard
+            </span>
+
+        </button>
+
+
+        <!-- =================================================
+             KARYAWAN
+        ================================================== -->
+
+        <button
+            type="button"
+            class="menu-item"
+            onclick="showPage('karyawan', this)"
+        >
+
+            <span class="menu-icon">
+
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+
+                    <circle
+                        cx="9"
+                        cy="8"
+                        r="3"
+                    ></circle>
+
+                    <path
+                        d="M3.5 19c.6-3.1 2.5-4.8 5.5-4.8s4.9 1.7 5.5 4.8"
+                    ></path>
+
+                    <circle
+                        cx="17"
+                        cy="9"
+                        r="2.3"
+                    ></circle>
+
+                    <path
+                        d="M15.2 14.8c2.5-.2 4.3 1.2 5.1 3.7"
+                    ></path>
+
+                </svg>
+
+            </span>
+
+            <span>
+                Karyawan
+            </span>
+
+        </button>
+
+
+        <!-- =================================================
+             PLANNING
+        ================================================== -->
+
+        <button
+            type="button"
+            class="menu-item"
+            onclick="showPage('planning', this)"
+        >
+
+            <span class="menu-icon">
+
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+
+                    <circle
+                        cx="12"
+                        cy="12"
+                        r="8.5"
+                    ></circle>
+
+                    <path
+                        d="M12 7v5l3.5 2"
+                    ></path>
+
+                </svg>
+
+            </span>
+
+            <span>
+                Planning Lembur
+            </span>
+
+        </button>
+
+    </div>
+
+</aside>
+
+
+
+<!-- =====================================================
+     MAIN
+====================================================== -->
+
+<main class="main">
+
+
+    <!-- =================================================
+         TOPBAR
+    ================================================== -->
+
+    <div class="topbar">
+
+        <div class="page-title">
+
+            <h1 id="pageTitle">
+                Dashboard
+            </h1>
+
+            <p id="pageSubtitle">
+                Ringkasan planning lembur karyawan
+                            <th class="planning-action-header">
+
+        </div>
+
+
+        <div
+            class="date-now"
+            id="tanggalSekarang"
+        >
+            -
+        </div>
+
+    </div>
+
+
+
+    <!-- =================================================
+         DASHBOARD
+    ================================================== -->
+
+    <section
+        id="dashboard"
+        class="page active-page"
+    >
+
+
+        <!-- =================================================
+             FILTER DASHBOARD
+        ================================================== -->
+
+        <div class="dashboard-filter">
+
+            <div class="dashboard-filter-header">
+
+                <div>
+
+                    <span class="dashboard-filter-title">
+                        Filter Periode
+                    </span>
+
+                    <span class="dashboard-filter-subtitle">
+                        Kosongkan tanggal untuk menampilkan seluruh data
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="dashboard-filter-body">
+
+                <div class="filter-group">
+
+                    <label for="dashboardTanggalAwal">
+                        Tanggal Mulai
+                    </label>
+
+                    <input
+                        type="date"
+                        id="dashboardTanggalAwal"
+                    >
+
+                </div>
+
+
+                <div class="filter-group">
+
+                    <label for="dashboardTanggalAkhir">
+                        Tanggal Akhir
+                    </label>
+
+                    <input
+                        type="date"
+                        id="dashboardTanggalAkhir"
+                    >
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="btn-filter-reset"
+                    id="resetDashboardFilter"
+                >
+                    Reset Filter
+                </button>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             STATISTIK DASHBOARD
+        ================================================== -->
+
+        <div class="stats-grid">
+
+
+            <!-- TOTAL KARYAWAN -->
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    Total Karyawan
+                </div>
+
+                <div
+                    class="stat-number"
+                    id="totalKaryawan"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <!-- TOTAL PLANNING -->
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    Total Planning
+                </div>
+
+                <div
+                    class="stat-number"
+                    id="totalPlanning"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <!-- TOTAL JAM -->
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    Total Jam
+                </div>
+
+                <div
+                    class="stat-number"
+                    id="totalJam"
+                >
+                    0 Jam
+                </div>
+
+            </div>
+
+
+            <!-- PLANNING HARI INI -->
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    Planning Hari Ini
+                </div>
+
+                <div
+                    class="stat-number"
+                    id="planningHariIni"
+                >
+                    0
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             GRAFIK
+        ================================================== -->
+
+        <div class="dashboard-charts">
+
+
+            <!-- =================================================
+                 TREND MAND POWER
+            ================================================== -->
+
+            <div class="card chart-card">
+
+                <div class="card-header">
+
+                    <div class="chart-heading-icon chart-heading-icon-trend" aria-hidden="true">
+                        ↗
+                    </div>
+
+                    <div>
+
+                        <span class="chart-kicker">
+                            PERFORMANCE
+                        </span>
+
+                        <h2>
+                            Trend Mand Power Lembur
+                        </h2>
+
+                        <p>
+                            Jumlah karyawan lembur berdasarkan tanggal
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="chart-container">
+
+                    <canvas
+                        id="planningChart"
+                    ></canvas>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- =================================================
+                 DISTRIBUSI DURASI
+            ================================================== -->
+
+            <div class="card chart-card">
+
+                <div class="card-header">
+
+                    <div class="chart-heading-icon chart-heading-icon-duration" aria-hidden="true">
+                        ◒
+                    </div>
+
+                    <div>
+
+                        <span class="chart-kicker">
+                            KOMPOSISI
+                        </span>
+
+                        <h2>
+                            Distribusi Durasi
+                        </h2>
+
+                        <p>
+                            Komposisi durasi lembur
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="chart-container chart-doughnut">
+
+                    <canvas
+                        id="durasiChart"
+                    ></canvas>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             TOP KARYAWAN
+        ================================================== -->
+
+        <div class="card chart-card top-karyawan-card">
+
+            <div class="card-header">
+
+                <div class="chart-heading-icon chart-heading-icon-ranking" aria-hidden="true">
+                    #1
+                </div>
+
+                <div>
+
+                    <span class="chart-kicker">
+                        RANKING
+                    </span>
+
+                    <h2>
+                        Top Karyawan Lembur
+                    </h2>
+
+                    <p>
+                        Karyawan dengan jumlah planning terbanyak
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="chart-container top-chart">
+
+                <canvas
+                    id="karyawanChart"
+                ></canvas>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             PLANNING TERBARU
+        ================================================== -->
+
+        <div class="card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Planning Terbaru
+                    </h2>
+
+                    <p>
+                        Lima planning lembur terbaru
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Tanggal
+                            </th>
+
+                            <th>
+                                ID Planning
+                            </th>
+
+                            <th>
+                                Jumlah
+                            </th>
+
+                            <th>
+                                Jam
+                            </th>
+
+                            <th>
+                                Durasi
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody
+                        id="dashboardPlanning"
+                    ></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             DURASI
+        ================================================== -->
+
+        <div class="stats-grid">
+
+
+            <!-- 4 JAM -->
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    Lembur 4 Jam
+                </div>
+
+                <div
+                    class="stat-number"
+                    id="count4Jam"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <!-- 8 JAM -->
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    Lembur 8 Jam
+                </div>
+
+                <div
+                    class="stat-number"
+                    id="count8Jam"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <!-- 12 JAM -->
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    Lembur 12 Jam
+                </div>
+
+                <div
+                    class="stat-number"
+                    id="count12Jam"
+                >
+                    0
+                </div>
+
+            </div>
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =================================================
+         KARYAWAN
+    ================================================== -->
+
+    <section
+        id="karyawan"
+        class="page"
+    >
+
+
+        <!-- =================================================
+             SUMMARY KARYAWAN
+        ================================================== -->
+
+        <div class="karyawan-summary">
+
+
+            <!-- KARYAWAN AKTIF -->
+
+            <div class="summary-card">
+
+                <div class="summary-icon active">
+                    👤
+                </div>
+
+                <div class="summary-info">
+
+                    <span class="summary-label">
+                        Karyawan Aktif
+                    </span>
+
+                    <strong id="totalKaryawanAktif">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- KARYAWAN PENALTI -->
+
+            <div class="summary-card">
+
+                <div class="summary-icon penalty">
+                    ⚠️
+                </div>
+
+                <div class="summary-info">
+
+                    <span class="summary-label">
+                        Karyawan Penalti
+                    </span>
+
+                    <strong id="totalKaryawanPenalti">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             TAMBAH KARYAWAN
+        ================================================== -->
+
+        <div class="card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Tambah Karyawan
+                    </h2>
+
+                    <p>
+                        Tambahkan karyawan baru
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <form id="formKaryawan">
+
+                <div class="form-grid">
+
+
+                    <!-- ID -->
+
+                    <div class="form-group">
+
+                        <label>
+                            ID Karyawan
+                        </label>
+
+                        <input
+                            type="text"
+                            id="idKaryawan"
+                            placeholder="Contoh: 92250566"
+                            autocomplete="off"
+                            inputmode="numeric"
+                            pattern="[0-9]+"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                            required
+                        >
+
+                    </div>
+
+
+                    <!-- NAMA -->
+
+                    <div class="form-group">
+
+                        <label>
+                            Nama Karyawan
+                        </label>
+
+                        <input
+                            type="text"
+                            id="namaKaryawan"
+                            placeholder="Masukkan nama karyawan"
+                            autocomplete="off"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    style="
+                        display:flex;
+                        justify-content:flex-end;
+                        margin-top:18px;
+                    "
+                >
+
+                    <button
+                        type="submit"
+                        class="btn-primary"
+                    >
+                        Tambah Karyawan
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+
+
+        <!-- =================================================
+             DATABASE KARYAWAN
+        ================================================== -->
+
+        <div class="card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Database Karyawan
+                    </h2>
+
+                    <p id="jumlahKaryawanText">
+                        0 karyawan
+                    </p>
+
+                </div>
+
+
+                <div class="search-box">
+
+                    <input
+                        type="text"
+                        id="searchKaryawan"
+                        placeholder="Cari ID atau nama..."
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                No
+                            </th>
+
+                            <th>
+                                ID Karyawan
+                            </th>
+
+                            <th>
+                                Nama
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Aksi
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody
+                        id="tableKaryawan"
+                    ></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- =================================================
+         PLANNING
+    ================================================== -->
+
+    <section
+        id="planning"
+        class="page"
+    >
+
+        <div class="card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Planning Lembur
+                    </h2>
+
+                    <p>
+                        Atur jadwal lembur karyawan
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    class="btn-primary"
+                    onclick="openPlanningModal()"
+                >
+                    Buat Planning
+                </button>
+
+            </div>
+
+
+
+            <!-- =================================================
+                 FILTER PLANNING
+            ================================================== -->
+
+            <div
+                style="
+                    display:grid;
+                    grid-template-columns:repeat(2, 1fr);
+                    gap:12px;
+                    margin-bottom:18px;
+                "
+            >
+
+                <!-- FILTER TANGGAL -->
+
+                <div class="form-group">
+
+                    <label>
+                        Filter Tanggal
+                    </label>
+
+                    <input
+                        type="date"
+                        id="filterTanggal"
+                    >
+
+                </div>
+
+
+                <!-- FILTER KARYAWAN -->
+
+                <div class="form-group">
+
+                    <label>
+                        Filter Karyawan
+                    </label>
+
+                    <select
+                        id="filterKaryawan"
+                    >
+
+                        <option value="">
+                            Semua Karyawan
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- RESET FILTER -->
+
+            <div
+                style="
+                    display:flex;
+                    justify-content:flex-end;
+                    margin-bottom:15px;
+                "
+            >
+
+                <button
+                    type="button"
+                    class="btn-secondary"
+                    onclick="resetFilter()"
+                >
+                    Reset Filter
+                </button>
+
+            </div>
+
+
+
+            <!-- TABLE PLANNING -->
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                No
+                            </th>
+
+                            <th>
+                                ID Planning
+                            </th>
+
+                            <th>
+                                Tanggal
+                            </th>
+
+                            <th>
+                                Karyawan
+                            </th>
+
+                            <th>
+                                Jam
+                            </th>
+
+                            <th>
+                                Durasi
+                            </th>
+
+                            <th>
+                                Keterangan
+                            </th>
+
+                            <th class="planning-action-header">
+                                Aksi
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody
+                        id="planningTable"
+                    ></tbody>
+
+                </table>
+
+            </div>
+
+
+
+            <div
+                id="jumlahPlanningText"
+                style="
+                    margin-top:15px;
+                    color:#6b7280;
+                    font-size:12px;
+                "
+            >
+                0 planning
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         FOOTER HAK CIPTA
+    ====================================================== -->
+
+    <footer
+        style="
+            width:100%;
+            margin-top:35px;
+            padding:0 5px 25px;
+        "
+    >
+
+
+        <!-- GARIS FOOTER -->
+
+        <div
+            style="
+                width:100%;
+                height:1px;
+                background:linear-gradient(
+                    90deg,
+                    transparent,
+                    #d9dcd6 15%,
+                    #d9dcd6 85%,
+                    transparent
+                );
+            "
+        ></div>
+
+
+
+        <!-- FOOTER CONTENT -->
+
+        <div
+            style="
+                min-height:85px;
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                gap:25px;
+                padding:22px 0;
+                font-size:11px;
+                color:#73777c;
+            "
+        >
+
+
+            <!-- COMPANY -->
+
+            <div
+                style="
+                    display:flex;
+                    align-items:center;
+                    gap:10px;
+                "
+            >
+
+                <div
+                    style="
+                        width:4px;
+                        height:28px;
+                        background:#F7F40F;
+                        border-radius:5px;
+                        box-shadow:0 3px 8px rgba(247,244,15,.25);
+                    "
+                ></div>
+
+
+                <div>
+
+                    <div
+                        style="
+                            color:#202124;
+                            font-size:12px;
+                            font-weight:800;
+                            letter-spacing:.3px;
+                            text-transform:uppercase;
+                        "
+                    >
+                        PT LINFOX LOGISTICS INDONESIA
+                    </div>
+
+
+                    <div
+                        style="
+                            margin-top:3px;
+                            color:#969a9f;
+                            font-size:10px;
+                        "
+                    >
+                        © 2026 All Rights Reserved.
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- DESIGNER -->
+
+            <div
+                style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                    padding:8px 12px;
+                    border:1px solid #e5e7e2;
+                    border-radius:9px;
+                    background:#fafbf9;
+                    color:#454545;
+                    font-size:11px;
+                    font-weight:700;
+                    white-space:nowrap;
+                    box-shadow:0 2px 8px rgba(0,0,0,.025);
+                "
+            >
+
+                <span
+                    style="
+                        width:7px;
+                        height:7px;
+                        background:#F7F40F;
+                        border-radius:50%;
+                        box-shadow:0 0 0 3px rgba(247,244,15,.18);
+                    "
+                ></span>
+
+
+                <span>
+
+                    Website Design by
+
+                    <strong
+                        style="
+                            color:#111111;
+                            font-weight:800;
+                        "
+                    >
+                        Daysheet
+                    </strong>
+
+                </span>
+
+            </div>
+
+        </div>
+
+
+    </footer>
+
+</main>
+
+
+
+<!-- =====================================================
+     MODAL PENALTI
+====================================================== -->
+
+<div
+    id="penaltyModal"
+    class="modal"
+>
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2>
+                    Penalti Karyawan
+                </h2>
+
+                <p>
+                    Karyawan yang terkena penalti
+                    tidak dapat masuk planning
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="modal-close"
+                onclick="closePenaltyModal()"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form id="formPenalty">
+
+            <input
+                type="hidden"
+                id="penaltyKaryawanId"
+            >
+
+
+            <div class="form-group">
+
+                <label>
+                    Karyawan
+                </label>
+
+                <input
+                    type="text"
+                    id="penaltyKaryawanNama"
+                    readonly
+                >
+
+            </div>
+
+
+            <div
+                class="form-group"
+                style="margin-top:16px;"
+            >
+
+                <label>
+
+                    Alasan Penalti
+
+                    <span
+                        style="
+                            color:#d71920;
+                            font-weight:800;
+                        "
+                    >
+                        *
+                    </span>
+
+                </label>
+
+
+                <textarea
+                    id="alasanPenalti"
+                    placeholder="Masukkan alasan penalti..."
+                    required
+                ></textarea>
+
+            </div>
+
+
+            <div class="penalty-warning">
+
+                <div class="penalty-warning-icon">
+
+                    <svg
+                        viewBox="0 0 24 24"
+                    >
+
+                        <path
+                            d="M12 3.5 21 19H3L12 3.5Z"
+                        ></path>
+
+                        <path
+                            d="M12 9v4"
+                        ></path>
+
+                        <circle
+                            cx="12"
+                            cy="16.5"
+                            r=".7"
+                        ></circle>
+
+                    </svg>
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Karyawan akan diblokir
+                    </strong>
+
+                    <span>
+                        Karyawan tidak dapat dipilih
+                        untuk planning sampai penalti dilepas.
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn-cancel"
+                    onclick="closePenaltyModal()"
+                >
+                    Batal
+                </button>
+
+
+                <button
+                    type="submit"
+                    class="btn-primary"
+                >
+                    Aktifkan Penalti
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+
+<!-- =====================================================
+     MODAL PLANNING
+====================================================== -->
+
+<div
+    id="planningModal"
+    class="modal"
+>
+
+    <div
+        class="modal-content"
+        style="max-width:700px;"
+    >
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2>
+                    Buat Planning Lembur
+                </h2>
+
+                <p>
+                    Pilih karyawan dan tentukan jadwal lembur.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="modal-close"
+                onclick="closePlanningModal()"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form id="formPlanning">
+
+            <div class="form-grid">
+
+
+                <!-- TANGGAL -->
+
+                <div class="form-group">
+
+                    <label>
+                        Tanggal
+                    </label>
+
+                    <input
+                        type="date"
+                        id="tanggal"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- DURASI -->
+
+                <div class="form-group">
+
+                    <label>
+                        Durasi
+                    </label>
+
+                    <input
+                        type="text"
+                        id="durasiPlanning"
+                        value="4 Jam"
+                        readonly
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label>
+                        Jenis Lembur
+                    </label>
+
+                    <select id="jenisLembur">
+                        <option value="harian">Harian</option>
+                        <option value="tanggal_merah">Tanggal Merah</option>
+                    </select>
+
+                </div>
+
+
+                <!-- JAM MULAI -->
+
+                <div class="form-group">
+
+                    <label>
+                        Jam Mulai
+                    </label>
+
+                    <input
+                        type="time"
+                        id="jamMulai"
+                        value="17:00"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- JAM SELESAI -->
+
+                <div class="form-group">
+
+                    <label>
+                        Jam Selesai
+                    </label>
+
+                    <input
+                        type="time"
+                        id="jamSelesai"
+                        value="21:00"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- KETERANGAN -->
+
+                <div class="form-group full">
+
+                    <label>
+                        Keterangan
+                    </label>
+
+                    <textarea
+                        id="keterangan"
+                        placeholder="Contoh: Overtime produksi..."
+                    ></textarea>
+
+                </div>
+
+
+                <!-- KARYAWAN -->
+
+                <div class="form-group full">
+
+                    <label>
+                        Pilih Karyawan
+                    </label>
+
+
+                    <div class="planning-tools">
+
+                        <span
+                            class="jumlah-dipilih"
+                            id="jumlahKaryawanPlanning"
+                        >
+                            0 karyawan dipilih
+                        </span>
+
+
+                        <div
+                            style="
+                                display:flex;
+                                gap:12px;
+                            "
+                        >
+
+                            <button
+                                type="button"
+                                onclick="pilihSemuaKaryawanPlanning()"
+                            >
+                                Pilih Semua
+                            </button>
+
+
+                            <button
+                                type="button"
+                                onclick="batalSemuaKaryawanPlanning()"
+                            >
+                                Batal Semua
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="planningKaryawanList"
+                        class="planning-karyawan-list"
+                    ></div>
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn-cancel"
+                    onclick="closePlanningModal()"
+                >
+                    Batal
+                </button>
+
+
+                <button
+                    type="button"
+                    id="btnBuatPlanning"
+                    class="btn-primary"
+                >
+                    Buat Planning
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+
+<!-- =====================================================
+     MODAL RIWAYAT KARYAWAN
+====================================================== -->
+
+<div
+    id="historyKaryawanModal"
+    class="modal"
+>
+
+    <div
+        class="modal-content"
+        style="max-width:700px;"
+    >
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2>
+                    Riwayat Lembur
+                </h2>
+
+                <p id="historyKaryawanTitle">
+                    -
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="modal-close"
+                onclick="tutupRiwayatLembur()"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div
+            id="historyKaryawanContent"
+            style="
+                max-height:500px;
+                overflow-y:auto;
+                padding:4px 2px;
+            "
+        ></div>
+
+
+        <div class="modal-actions">
+
+            <button
+                type="button"
+                class="btn-cancel"
+                onclick="tutupRiwayatLembur()"
+            >
+                Tutup
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- =====================================================
+     JAVASCRIPT
+====================================================== -->
+
+<script src="database.js"></script>
+
+<script src="karyawan.js"></script>
+
+<script src="lembur.js"></script>
+
+<script src="app.js"></script>
+
+
+</body>
+
+</html>
