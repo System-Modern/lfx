@@ -737,6 +737,100 @@ button {
         1.5;
 }
 
+.dashboard-motion {
+    position: relative;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-end;
+    justify-content: center;
+    width: 58px;
+    height: 42px;
+    margin: 0 !important;
+    flex-shrink: 0;
+}
+
+.motion-person {
+    position: relative;
+    width: 24px;
+    height: 38px;
+    animation: personBob 1.8s ease-in-out infinite;
+}
+
+.motion-head {
+    position: absolute;
+    top: 0;
+    left: 7px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #172033;
+}
+
+.motion-body {
+    position: absolute;
+    top: 13px;
+    left: 4px;
+    width: 17px;
+    height: 20px;
+    border-radius: 9px 9px 5px 5px;
+    background: #d71920;
+    transform-origin: center bottom;
+}
+
+.motion-arm {
+    position: absolute;
+    top: 16px;
+    width: 4px;
+    height: 15px;
+    border-radius: 4px;
+    background: #172033;
+    transform-origin: top center;
+}
+
+.motion-arm-left {
+    left: 2px;
+    transform: rotate(24deg);
+    animation: armLeft 1.8s ease-in-out infinite;
+}
+
+.motion-arm-right {
+    right: 1px;
+    transform: rotate(-24deg);
+    animation: armRight 1.8s ease-in-out infinite;
+}
+
+.motion-signal {
+    position: absolute;
+    right: 0;
+    bottom: 5px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #f7f40f;
+    box-shadow: 0 0 0 0 rgba(247, 244, 15, .7);
+    animation: signalPulse 1.8s ease-out infinite;
+}
+
+@keyframes personBob {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-4px) rotate(2deg); }
+}
+
+@keyframes armLeft {
+    0%, 100% { transform: rotate(24deg); }
+    50% { transform: rotate(42deg); }
+}
+
+@keyframes armRight {
+    0%, 100% { transform: rotate(-24deg); }
+    50% { transform: rotate(-42deg); }
+}
+
+@keyframes signalPulse {
+    0% { box-shadow: 0 0 0 0 rgba(247, 244, 15, .7); }
+    70%, 100% { box-shadow: 0 0 0 9px rgba(247, 244, 15, 0); }
+}
+
 .dashboard-filter-body {
     display: grid;
 
@@ -2598,12 +2692,164 @@ td {
 
 tbody tr {
     transition:
-        background .15s ease;
+        background .15s ease,
+        transform .18s ease;
 }
 
 tbody tr:hover td {
     background:
         #fffef2;
+}
+
+tbody tr:hover {
+    transform: translateX(2px);
+}
+
+.planning-employee-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 180px;
+    max-width: 280px;
+    line-height: 1.35;
+}
+
+.planning-employee-details {
+    min-width: 120px;
+}
+
+.planning-employee-details summary {
+    width: fit-content;
+    color: #2563eb;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+}
+
+.planning-employee-details summary:hover {
+    color: #1d4ed8;
+}
+
+.planning-employee-details[open] .planning-employee-list {
+    margin-top: 8px;
+}
+
+.planning-employee-name {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.planning-employee-number {
+    display: inline-block;
+    min-width: 22px;
+    margin-right: 6px;
+    color: #73777c;
+    font-weight: 700;
+}
+
+.report-filters {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    align-items: end;
+    gap: 14px;
+}
+
+.report-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.report-summary .summary-card {
+    min-height: 86px;
+}
+
+.report-card + .report-summary + .card table {
+    border: 1px solid #d9dcd6;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.report-card + .report-summary + .card th {
+    background: #172033;
+    color: #f7f40f;
+    border-bottom: 0;
+    font-size: 10px;
+    letter-spacing: .7px;
+}
+
+.report-card + .report-summary + .card td {
+    padding: 12px;
+    line-height: 1.4;
+}
+
+.report-card + .report-summary + .card tbody tr:nth-child(even) td {
+    background: #f8f9f6;
+}
+
+.report-card + .report-summary + .card tbody tr:hover td {
+    background: #fffde0;
+}
+
+.report-card + .report-summary + .card td:nth-child(1) {
+    color: #73777c;
+    font-weight: 700;
+    text-align: center;
+}
+
+.report-card + .report-summary + .card td:nth-child(3) {
+    color: #172033;
+    font-weight: 700;
+}
+
+.report-card + .report-summary + .card td:nth-child(5),
+.report-card + .report-summary + .card td:nth-child(6) {
+    color: #b51218;
+    font-weight: 700;
+}
+
+@media (max-width: 760px) {
+    .report-filters,
+    .report-summary {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media print {
+    body {
+        background: #ffffff !important;
+    }
+
+    .sidebar,
+    .topbar,
+    .page:not(#laporan),
+    footer,
+    #printLaporanKaryawan,
+    #resetLaporanKaryawan,
+    .report-filters {
+        display: none !important;
+    }
+
+    .main {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    #laporan {
+        display: block !important;
+    }
+
+    .report-card {
+        box-shadow: none !important;
+        border: 0 !important;
+        padding: 0 !important;
+    }
+
+    .report-summary {
+        margin-top: 20px;
+    }
 }
 
 td:last-child {
@@ -4258,6 +4504,11 @@ textarea:disabled {
 
 @media print {
 
+    @page {
+        size: A4 portrait;
+        margin: 14mm;
+    }
+
     .sidebar,
     .topbar,
     .btn-primary,
@@ -4293,5 +4544,255 @@ textarea:disabled {
     body {
         background:
             #ffffff;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    #laporan {
+        display: block !important;
+        color: #202020;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    #laporan .report-card,
+    #laporan > .card {
+        border: 0;
+        border-radius: 0;
+        margin: 0 0 18px;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    #laporan .report-card .card-header {
+        display: block;
+        margin-bottom: 16px;
+        padding: 18px 20px 16px;
+        background: #172033;
+        border-left: 8px solid #f7f40f;
+        border-bottom: 0;
+        border-radius: 0 8px 8px 0;
+    }
+
+    #laporan .report-card h2 {
+        margin: 0;
+        color: #ffffff;
+        font-size: 22px;
+        letter-spacing: .2px;
+    }
+
+    #laporan .report-card p,
+    #laporan .card-header p {
+        margin-top: 5px;
+        color: #d9dcd6;
+        font-size: 11px;
+    }
+
+    #laporan .report-summary {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin: 0 0 20px;
+    }
+
+    #laporan .report-summary .summary-card {
+        min-height: auto;
+        padding: 12px 14px;
+        border: 1px solid #d9dcd6;
+        border-radius: 6px;
+        background: #f8f9f6;
+        box-shadow: none;
+    }
+
+    #laporan .report-summary .summary-card:first-child {
+        border-top: 4px solid #f7f40f;
+    }
+
+    #laporan .report-summary .summary-card:nth-child(2) {
+        border-top: 4px solid #d71920;
+    }
+
+    #laporan .report-summary .summary-card:nth-child(3) {
+        border-top: 4px solid #172033;
+    }
+
+    #laporan .report-summary .summary-info {
+        gap: 3px;
+    }
+
+    #laporan .report-summary strong {
+        display: block;
+        margin-top: 4px;
+        color: #172033;
+        font-size: 16px;
+    }
+
+    #laporan > .card:last-child .card-header {
+        padding: 0 0 8px;
+    }
+
+    #laporan > .card:last-child h2 {
+        margin: 0;
+        color: #172033;
+        font-size: 15px;
+    }
+
+    #laporan .table-wrapper {
+        border: 1px solid #c8ccc5;
+        border-radius: 8px;
+        overflow: visible;
+    }
+
+    #laporan table {
+        width: 100%;
+        min-width: 0;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 10px;
+    }
+
+    #laporan th {
+        padding: 8px 7px;
+        background: #172033;
+        color: #f7f40f;
+        border: 1px solid #172033;
+        font-size: 9px;
+        font-weight: 800;
+        vertical-align: middle;
+    }
+
+    #laporan tbody tr:nth-child(even) td {
+        background: #f3f4ef;
+    }
+
+    #laporan tbody tr:nth-child(odd) td {
+        background: #ffffff;
+    }
+
+    #laporan td {
+        padding: 8px 7px;
+        color: #30343b;
+        border: 1px solid #d9dcd6;
+        font-size: 10px;
+        line-height: 1.35;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        vertical-align: middle;
+    }
+
+    #laporan tbody tr:first-child td {
+        border-top: 0;
+    }
+
+    #laporan th:nth-child(1),
+    #laporan td:nth-child(1) {
+        width: 6%;
+        text-align: center;
+    }
+
+    #laporan th:nth-child(2),
+    #laporan td:nth-child(2) {
+        width: 14%;
+    }
+
+    #laporan th:nth-child(3),
+    #laporan td:nth-child(3) {
+        width: 15%;
+    }
+
+    #laporan th:nth-child(4),
+    #laporan td:nth-child(4) {
+        width: 15%;
+    }
+
+    #laporan th:nth-child(5),
+    #laporan td:nth-child(5) {
+        width: 10%;
+    }
+
+    #laporan th:nth-child(6),
+    #laporan td:nth-child(6) {
+        width: 16%;
+    }
+
+    #laporan th:nth-child(7),
+    #laporan td:nth-child(7) {
+        width: 24%;
+    }
+
+    #laporan tr {
+        break-inside: avoid;
+    }
+
+    #laporan thead {
+        display: table-header-group;
+    }
+}
+
+.page.active-page > .card,
+.page.active-page > .dashboard-filter,
+.page.active-page > .stats-grid,
+.page.active-page > .dashboard-charts,
+.page.active-page > .karyawan-summary,
+.page.active-page > .report-summary {
+    animation: contentRise .42s cubic-bezier(.22, .8, .24, 1) both;
+}
+
+.page.active-page > :nth-child(2) {
+    animation-delay: .06s;
+}
+
+.page.active-page > :nth-child(3) {
+    animation-delay: .12s;
+}
+
+.page.active-page > :nth-child(4) {
+    animation-delay: .18s;
+}
+
+@keyframes contentRise {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.stats-grid .stat-card,
+.karyawan-summary .summary-card,
+.report-summary .summary-card {
+    transition:
+        transform .2s ease,
+        box-shadow .2s ease,
+        border-color .2s ease;
+}
+
+.stats-grid .stat-card:hover,
+.karyawan-summary .summary-card:hover,
+.report-summary .summary-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .08);
+}
+
+.menu-item svg {
+    transition: transform .22s ease;
+}
+
+.menu-item:hover svg,
+.menu-item.active svg {
+    transform: scale(1.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
     }
 }

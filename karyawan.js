@@ -1383,6 +1383,103 @@ async function tambahKaryawan() {
 }
 
 
+async function editKaryawan(index) {
+
+    if (crudProcessing) {
+        return;
+    }
+
+    const dataKaryawan =
+        getDataKaryawan();
+
+    const data =
+        dataKaryawan[index];
+
+    if (!data) {
+        showCRUDToast("error", "Data tidak ditemukan", "Karyawan sudah tidak tersedia.");
+        return;
+    }
+
+    const namaLama =
+        String(data.nama || "").trim();
+
+    const namaBaru =
+        window.prompt(
+            `Edit nama karyawan (${data.id})`,
+            namaLama
+        );
+
+    if (namaBaru === null) {
+        return;
+    }
+
+    const nama =
+        String(namaBaru).trim();
+
+    if (!nama) {
+        showCRUDToast("error", "Nama belum diisi", "Nama karyawan wajib diisi.");
+        return;
+    }
+
+    if (nama === namaLama) {
+        return;
+    }
+
+    if (!window.confirm(
+        `Ubah nama ${namaLama} menjadi ${nama}?\n\n` +
+        "Nama pada seluruh planning dan riwayat juga akan diperbarui."
+    )) {
+        return;
+    }
+
+    if (!startCRUDProcess("Mengubah karyawan", "Menyinkronkan nama ke planning...")) {
+        return;
+    }
+
+    const id = normalizeId(data.id);
+    const namaSebelumnya = data.nama;
+    const planningLama = getDataPlanning().map(item => ({
+        ...item,
+        karyawan: Array.isArray(item.karyawan)
+            ? item.karyawan.map(karyawan => ({ ...karyawan }))
+            : item.karyawan
+    }));
+
+    try {
+        data.nama = nama;
+
+        getDataPlanning().forEach(item => {
+            if (!Array.isArray(item.karyawan)) {
+                return;
+            }
+
+            item.karyawan.forEach(karyawan => {
+                if (normalizeId(karyawan.id) === id) {
+                    karyawan.nama = nama;
+                    karyawan.namaKaryawan = nama;
+                }
+            });
+        });
+
+        const berhasil = await saveKaryawanData();
+
+        if (!berhasil) {
+            data.nama = namaSebelumnya;
+            window.planning = planningLama;
+            throw new Error("Perubahan gagal disimpan ke database.");
+        }
+
+        refreshKaryawanUI();
+        finishCRUDProcess();
+        showCRUDToast("success", "Nama berhasil diubah", `${nama} (${data.id}) sudah diperbarui di seluruh planning.`);
+    }
+    catch (error) {
+        cancelCRUDProcess();
+        showCRUDToast("error", "Perubahan gagal", error.message || "Nama karyawan gagal diubah.");
+    }
+}
+
+
 /* =====================================================
    HAPUS KARYAWAN
    PLANNING LAMA TETAP AMAN
@@ -1833,6 +1930,14 @@ function renderKaryawan() {
                     ? `
                         <button
                             type="button"
+                            class="btn-secondary btn-small"
+                            onclick="editKaryawan(${index})"
+                        >
+                            Edit
+                        </button>
+
+                        <button
+                            type="button"
                             class="btn-primary btn-small"
                             onclick="lepasPenalti(${index})"
                         >
@@ -1858,6 +1963,14 @@ function renderKaryawan() {
                         ${penaltyReasonHTML}
                     `
                     : `
+                        <button
+                            type="button"
+                            class="btn-secondary btn-small"
+                            onclick="editKaryawan(${index})"
+                        >
+                            Edit
+                        </button>
+
                         <button
                             type="button"
                             class="btn-penalty btn-small"
@@ -2258,6 +2371,89 @@ function lihatRiwayatLembur(index) {
     modal.style.display =
         "flex";
 
+}
+
+
+function lihatRiwayatLemburByNama(nama) {
+
+    const targetNama =
+        normalizeSearch(nama);
+
+    const index =
+        getDataKaryawan().findIndex(
+            item => normalizeSearch(item.nama) === targetNama
+        );
+
+    if (index === -1) {
+        showCRUDToast(
+            "error",
+            "Karyawan tidak ditemukan",
+            `Data ${nama} tidak tersedia di database karyawan.`
+        );
+        return;
+    }
+
+    lihatRiwayatLembur(index);
+}
+
+
+function bukaRiwayatDashboard(title, planningItems, mode = "karyawan") {
+
+    const modal =
+        document.getElementById("historyKaryawanModal");
+
+    const titleElement =
+        document.getElementById("historyKaryawanTitle");
+
+    const content =
+        document.getElementById("historyKaryawanContent");
+
+    if (!modal || !content) {
+        return;
+    }
+
+    const items =
+        Array.isArray(planningItems) ? planningItems : [];
+
+    if (titleElement) {
+        titleElement.textContent = title;
+    }
+
+    content.innerHTML = "";
+
+    if (!items.length) {
+        content.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#6b7280;">Belum ada riwayat planning.</div>`;
+    } else {
+        items
+            .slice()
+            .sort((a, b) => new Date(b.tanggal || 0) - new Date(a.tanggal || 0))
+            .forEach(function (item, index) {
+                const element = document.createElement("div");
+                const karyawanNames = Array.isArray(item.karyawan)
+                    ? item.karyawan.map(k => k.nama || k.namaKaryawan || "-").join(", ")
+                    : "-";
+                const durasi = item.durasiPlanning ?? item.durasi ?? item.durasiMenit ?? "-";
+                const planningId = item.idPlanning || item.kodePlanning || item.id || "-";
+
+                element.className = "history-item";
+                element.innerHTML = `
+                    <div class="history-number">${index + 1}</div>
+                    <div class="history-content">
+                        <div class="history-date">${mode === "planning" ? `Planning ${escapeHTML(planningId)}` : escapeHTML(formatTanggalRiwayat(item.tanggal))}</div>
+                        <div class="history-detail">
+                            ${mode === "planning"
+                                ? `<span>📅 ${escapeHTML(formatTanggalRiwayat(item.tanggal))}</span><span>⏱ ${escapeHTML(String(durasi))}</span>`
+                                : `<span>🕐 ${escapeHTML(item.jamMulai || item.jam_mulai || "-")} - ${escapeHTML(item.jamSelesai || item.jam_selesai || "-")}</span><span>⏱ ${escapeHTML(String(durasi))}</span>`}
+                        </div>
+                        <div class="history-note">${escapeHTML(mode === "planning" ? item.keterangan || karyawanNames : karyawanNames)}</div>
+                    </div>
+                `;
+                content.appendChild(element);
+            });
+    }
+
+    modal.classList.add("show");
+    modal.style.display = "flex";
 }
 
 
@@ -3020,6 +3216,8 @@ function initializeKaryawan() {
 
     initKaryawanForm();
 
+    initLaporanKaryawan();
+
     initKaryawanSearch();
 
     initPenaltyForm();
@@ -3259,6 +3457,8 @@ document.addEventListener(
 
         updateKaryawanDropdown();
 
+        initLaporanKaryawan();
+
         updateSummaryKaryawan();
 
 
@@ -3289,6 +3489,129 @@ document.addEventListener(
    EXPORT GLOBAL
 ===================================================== */
 
+function getLaporanDurasiMenit(item) {
+
+    if (item.durasiMenit !== undefined && item.durasiMenit !== null) {
+        return Number(item.durasiMenit) || 0;
+    }
+
+    const durasi = String(item.durasi || "").toLowerCase();
+    const angka = Number.parseFloat(durasi.replace(",", "."));
+
+    return Number.isFinite(angka) ? angka * 60 : 0;
+}
+
+
+function renderLaporanKaryawan() {
+
+    const select = document.getElementById("laporanKaryawan");
+    const table = document.getElementById("laporanKaryawanTable");
+
+    if (!select || !table) {
+        return;
+    }
+
+    const selectedId = select.value;
+
+    select.innerHTML = `<option value="">Pilih karyawan</option>`;
+
+    getDataKaryawan()
+        .slice()
+        .sort((a, b) => String(a.nama || "").localeCompare(String(b.nama || ""), "id"))
+        .forEach(function (item) {
+            const option = document.createElement("option");
+            option.value = normalizeId(item.id);
+            option.textContent = `${item.nama || "-"} (${item.id || "-"})`;
+            option.selected = option.value === selectedId;
+            select.appendChild(option);
+        });
+
+    const id = select.value;
+    const awal = document.getElementById("laporanTanggalAwal")?.value || "";
+    const akhir = document.getElementById("laporanTanggalAkhir")?.value || "";
+    const namaElement = document.getElementById("laporanNama");
+    const totalElement = document.getElementById("laporanTotalPlanning");
+    const jamElement = document.getElementById("laporanTotalJam");
+    const periodeElement = document.getElementById("laporanPeriodeText");
+
+    if (!id) {
+        if (namaElement) namaElement.textContent = "-";
+        if (totalElement) totalElement.textContent = "0";
+        if (jamElement) jamElement.textContent = "0 Jam";
+        if (periodeElement) periodeElement.textContent = "Pilih karyawan untuk melihat riwayat.";
+        table.innerHTML = `<tr><td colspan="7" class="empty-state-cell">Pilih karyawan untuk melihat riwayat.</td></tr>`;
+        return;
+    }
+
+    const karyawan = getDataKaryawan().find(item => normalizeId(item.id) === id);
+    const riwayat = getDataPlanning().filter(function (item) {
+        const cocokKaryawan = Array.isArray(item.karyawan) && item.karyawan.some(k => normalizeId(k.id) === id);
+        const cocokAwal = !awal || String(item.tanggal || "") >= awal;
+        const cocokAkhir = !akhir || String(item.tanggal || "") <= akhir;
+        return cocokKaryawan && cocokAwal && cocokAkhir;
+    }).sort((a, b) => new Date(a.tanggal || 0) - new Date(b.tanggal || 0));
+
+    const totalMenit = riwayat.reduce((total, item) => total + getLaporanDurasiMenit(item), 0);
+
+    if (namaElement) namaElement.textContent = karyawan?.nama || "-";
+    if (totalElement) totalElement.textContent = String(riwayat.length);
+    if (jamElement) jamElement.textContent = `${(totalMenit / 60).toFixed(1).replace(".0", "")} Jam`;
+    if (periodeElement) periodeElement.textContent = `${riwayat.length} riwayat lembur ditemukan.`;
+
+    if (!riwayat.length) {
+        table.innerHTML = `<tr><td colspan="7" class="empty-state-cell">Belum ada riwayat pada periode ini.</td></tr>`;
+        return;
+    }
+
+    table.innerHTML = riwayat.map(function (item, index) {
+        const jenis = item.jenisLembur === "tanggal_merah" ? "Tanggal Merah" : "Harian";
+        const idPlanning = item.idPlanning || item.kodePlanning || item.id || "-";
+        const durasi = item.durasi || `${getLaporanDurasiMenit(item) / 60} Jam`;
+
+        return `<tr>
+            <td>${index + 1}</td>
+            <td>${escapeHTML(formatTanggalRiwayat(item.tanggal))}</td>
+            <td>${escapeHTML(idPlanning)}</td>
+            <td>${escapeHTML(item.jamMulai || "-")} - ${escapeHTML(item.jamSelesai || "-")}</td>
+            <td>${escapeHTML(durasi)}</td>
+            <td>${jenis}</td>
+            <td>${escapeHTML(item.keterangan || "-")}</td>
+        </tr>`;
+    }).join("");
+}
+
+
+function initLaporanKaryawan() {
+
+    const select = document.getElementById("laporanKaryawan");
+
+    if (!select || select.dataset.listener) {
+        return;
+    }
+
+    ["laporanKaryawan", "laporanTanggalAwal", "laporanTanggalAkhir"].forEach(function (id) {
+        document.getElementById(id)?.addEventListener("change", renderLaporanKaryawan);
+    });
+
+    document.getElementById("resetLaporanKaryawan")?.addEventListener("click", function () {
+        select.value = "";
+        document.getElementById("laporanTanggalAwal").value = "";
+        document.getElementById("laporanTanggalAkhir").value = "";
+        renderLaporanKaryawan();
+    });
+
+    document.getElementById("printLaporanKaryawan")?.addEventListener("click", function () {
+        if (!select.value) {
+            showCRUDToast("warning", "Pilih karyawan", "Pilih karyawan sebelum mencetak laporan.");
+            return;
+        }
+        window.print();
+    });
+
+    select.dataset.listener = "true";
+    renderLaporanKaryawan();
+}
+
 window.getDataKaryawan =
     getDataKaryawan;
 
@@ -3297,6 +3620,9 @@ window.getDataPlanning =
 
 window.tambahKaryawan =
     tambahKaryawan;
+
+window.editKaryawan =
+    editKaryawan;
 
 window.renderKaryawan =
     renderKaryawan;
@@ -3321,6 +3647,12 @@ window.updateKaryawanDropdown =
 
 window.lihatRiwayatLembur =
     lihatRiwayatLembur;
+
+window.lihatRiwayatLemburByNama =
+    lihatRiwayatLemburByNama;
+
+window.bukaRiwayatDashboard =
+    bukaRiwayatDashboard;
 
 window.tutupRiwayatLembur =
     tutupRiwayatLembur;

@@ -206,6 +206,15 @@ const PAGE_INFO = {
 
         "Atur jadwal lembur karyawan"
 
+    ],
+
+
+    laporan: [
+
+        "Laporan Riwayat",
+
+        "Riwayat lembur berdasarkan karyawan"
+
     ]
 
 };
@@ -1238,6 +1247,15 @@ function showPage(
 
             break;
 
+
+        case "laporan":
+
+            if (typeof renderLaporanKaryawan === "function") {
+                renderLaporanKaryawan();
+            }
+
+            break;
+
     }
 
 }
@@ -1600,6 +1618,9 @@ function renderPlanningChart(
 
         labels,
 
+        planningDates:
+            tanggal,
+
 
         datasets: [{
 
@@ -1693,6 +1714,33 @@ function renderPlanningChart(
 
                     maintainAspectRatio:
                         false,
+
+                    onClick:
+                        function(event, elements) {
+                            if (!elements.length) {
+                                return;
+                            }
+
+                            const index = elements[0].index;
+                            const selectedDate = this.data.planningDates[index];
+                            const matchingPlanning = getDashboardFilteredPlanning().filter(function(item) {
+                                return normalizePlanningDate(item.tanggal) === selectedDate;
+                            });
+
+                            if (typeof window.bukaRiwayatDashboard === "function") {
+                                window.bukaRiwayatDashboard(
+                                    `Riwayat Lembur - ${this.data.labels[index]}`,
+                                    matchingPlanning,
+                                    "karyawan"
+                                );
+                            }
+                        },
+
+                    onHover:
+                        function(event, elements) {
+                            event.native.target.style.cursor =
+                                elements.length ? "pointer" : "default";
+                        },
 
 
                     interaction: {
@@ -2053,6 +2101,8 @@ function renderDurasiChart(
 
         ],
 
+        durationMinutes: [240, 480, 720],
+
 
         datasets: [{
 
@@ -2146,6 +2196,33 @@ function renderDurasiChart(
 
                     maintainAspectRatio:
                         false,
+
+                    onClick:
+                        function(event, elements) {
+                            if (!elements.length) {
+                                return;
+                            }
+
+                            const index = elements[0].index;
+                            const selectedMinutes = this.data.durationMinutes[index];
+                            const matchingPlanning = getDashboardFilteredPlanning().filter(function(item) {
+                                return getDurasiMenitPlanning(item) === selectedMinutes;
+                            });
+
+                            if (typeof window.bukaRiwayatDashboard === "function") {
+                                window.bukaRiwayatDashboard(
+                                    `Riwayat Lembur - ${this.data.labels[index]}`,
+                                    matchingPlanning,
+                                    "planning"
+                                );
+                            }
+                        },
+
+                    onHover:
+                        function(event, elements) {
+                            event.native.target.style.cursor =
+                                elements.length ? "pointer" : "default";
+                        },
 
 
                     cutout:
@@ -2663,6 +2740,35 @@ function renderKaryawanChart(
 
                     maintainAspectRatio:
                         false,
+
+
+                    onClick:
+                        function(event, elements) {
+
+                            if (!elements.length) {
+                                return;
+                            }
+
+                            const barIndex =
+                                elements[0].index;
+
+                            const nama =
+                                this.data.labels[barIndex];
+
+                            if (
+                                nama &&
+                                typeof window.lihatRiwayatLemburByNama === "function"
+                            ) {
+                                window.lihatRiwayatLemburByNama(nama);
+                            }
+                        },
+
+
+                    onHover:
+                        function(event, elements) {
+                            event.native.target.style.cursor =
+                                elements.length ? "pointer" : "default";
+                        },
 
 
                     layout: {

@@ -1798,18 +1798,19 @@
                 ? { name: item.buktiNama }
                 : getPlanningEvidence(id);
 
-            const namaKaryawan =
-                Array.isArray(item.karyawan)
+            const namaKaryawanHTML =
+                Array.isArray(item.karyawan) && item.karyawan.length
                     ? item.karyawan
-                        .map(function (k) {
-                            return (
+                        .map(function (k, employeeIndex) {
+                            const nama =
                                 k.nama ||
                                 k.namaKaryawan ||
-                                "-"
-                            );
+                                "-";
+
+                            return `<span class="planning-employee-name"><span class="planning-employee-number">${employeeIndex + 1}.</span>${escapePlanningHTML(nama)}</span>`;
                         })
-                        .join(", ")
-                    : "-";
+                        .join("")
+                    : `<span class="planning-employee-name">-</span>`;
 
             const tr =
                 document.createElement("tr");
@@ -1830,9 +1831,12 @@
                 </td>
 
                 <td>
-                    ${escapePlanningHTML(
-                        namaKaryawan
-                    )}
+                    <details class="planning-employee-details">
+                        <summary>Lihat daftar karyawan</summary>
+                        <div class="planning-employee-list">
+                            ${namaKaryawanHTML}
+                        </div>
+                    </details>
                 </td>
 
                 <td>
@@ -4283,6 +4287,17 @@ async function cetakPlanningPNG(idPlanning) {
         durasi = durasi || "-";
 
 
+        const jenisLemburValue =
+            item.jenisLembur ||
+            item.jenis_lembur ||
+            "harian";
+
+        const jenisLemburTampil =
+            jenisLemburValue === "tanggal_merah"
+                ? "Tanggal Merah"
+                : "Harian";
+
+
         const keterangan =
             item.keterangan ||
             item.keteranganLembur ||
@@ -4791,9 +4806,8 @@ async function cetakPlanningPNG(idPlanning) {
                             box-sizing:border-box;
                             line-height:1.35;
                             letter-spacing:.1px;
-                            white-space:nowrap;
-                            overflow:hidden;
-                            text-overflow:ellipsis;
+                            white-space:normal;
+                            overflow-wrap:anywhere;
                         ">
                             ${escapeHTML(
                                 dataKaryawan.nama
@@ -4815,9 +4829,8 @@ async function cetakPlanningPNG(idPlanning) {
                             box-sizing:border-box;
                             line-height:1.35;
                             letter-spacing:.1px;
-                            white-space:nowrap;
-                            overflow:hidden;
-                            text-overflow:ellipsis;
+                            white-space:normal;
+                            overflow-wrap:anywhere;
                         ">
                             ${escapeHTML(
                                 dataKaryawan.nik
@@ -4853,10 +4866,10 @@ async function cetakPlanningPNG(idPlanning) {
             "794px";
 
         exportContainer.style.height =
-            "1123px";
+            "auto";
 
         exportContainer.style.overflow =
-            "hidden";
+            "visible";
 
         exportContainer.style.background =
             "#ffffff";
@@ -4880,8 +4893,9 @@ async function cetakPlanningPNG(idPlanning) {
             <div style="
                 position:relative;
                 width:794px;
-                height:1123px;
-                overflow:hidden;
+                min-height:1123px;
+                height:auto;
+                overflow:visible;
                 background:#ffffff;
                 color:#202020;
                 font-family:Arial,Helvetica,sans-serif;
@@ -5293,7 +5307,7 @@ async function cetakPlanningPNG(idPlanning) {
                                     box-sizing:border-box;
                                     white-space:nowrap;
                                 ">
-                                    Keterangan
+                                    Jenis Lembur
                                 </td>
 
 
@@ -5307,11 +5321,11 @@ async function cetakPlanningPNG(idPlanning) {
                                     font-weight:600;
                                     vertical-align:middle;
                                     box-sizing:border-box;
-                                    white-space:nowrap;
-                                    overflow:hidden;
-                                    text-overflow:ellipsis;
+                                    white-space:normal;
+                                    overflow-wrap:anywhere;
+                                    line-height:1.35;
                                 ">
-                                    ${escapeHTML(keterangan)}
+                                    ${escapeHTML(jenisLemburTampil)}
                                 </td>
 
                             </tr>
@@ -5729,6 +5743,28 @@ async function cetakPlanningPNG(idPlanning) {
         }
 
 
+        const exportPage =
+            exportContainer.firstElementChild;
+
+        let exportHeight = 1123;
+
+        if (exportPage) {
+            exportPage.style.height = "auto";
+            exportPage.style.minHeight = "1123px";
+            exportPage.style.overflow = "visible";
+            exportContainer.style.height = "auto";
+            exportContainer.style.overflow = "visible";
+
+            exportHeight = Math.max(
+                1123,
+                exportPage.scrollHeight
+            );
+
+            exportPage.style.height = `${exportHeight}px`;
+            exportContainer.style.height = `${exportHeight}px`;
+        }
+
+
         /* =====================================================
            RENDER
         ===================================================== */
@@ -5768,11 +5804,11 @@ async function cetakPlanningPNG(idPlanning) {
 
                         width:794,
 
-                        height:1123,
+                        height:exportHeight,
 
                         windowWidth:794,
 
-                        windowHeight:1123,
+                        windowHeight:exportHeight,
 
                         backgroundColor:"#ffffff",
 
@@ -5817,11 +5853,11 @@ async function cetakPlanningPNG(idPlanning) {
 
                         width:794,
 
-                        height:1123,
+                        height:exportHeight,
 
                         windowWidth:794,
 
-                        windowHeight:1123,
+                        windowHeight:exportHeight,
 
                         backgroundColor:"#ffffff",
 
@@ -5869,59 +5905,29 @@ async function cetakPlanningPNG(idPlanning) {
                 function(resolve, reject) {
 
                     try {
-
                         canvas.toBlob(
                             function(hasil) {
-
                                 if (!hasil) {
-
-                                    reject(
-                                        new Error(
-                                            "PNG gagal dibuat."
-                                        )
-                                    );
-
+                                    reject(new Error("PNG gagal dibuat."));
                                     return;
-
                                 }
 
-
-                                if (
-                                    hasil.size <= 0
-                                ) {
-
-                                    reject(
-                                        new Error(
-                                            "File PNG kosong."
-                                        )
-                                    );
-
+                                if (hasil.size <= 0) {
+                                    reject(new Error("File PNG kosong."));
                                     return;
-
                                 }
-
 
                                 resolve(hasil);
-
                             },
                             "image/png"
                         );
-
                     }
-
                     catch (e) {
-
                         reject(e);
-
                     }
-
                 }
             );
 
-
-        /* =====================================================
-           DOWNLOAD
-        ===================================================== */
 
         objectURL =
             URL.createObjectURL(blob);
@@ -5938,72 +5944,27 @@ async function cetakPlanningPNG(idPlanning) {
         downloadLink =
             document.createElement("a");
 
+        downloadLink.style.position = "fixed";
+        downloadLink.style.left = "-99999px";
+        downloadLink.style.top = "0";
+        downloadLink.style.width = "1px";
+        downloadLink.style.height = "1px";
+        downloadLink.style.opacity = "0";
+        downloadLink.href = objectURL;
+        downloadLink.download = `SPL_${namaFile}.png`;
+        document.body.appendChild(downloadLink);
 
-        downloadLink.style.position =
-            "fixed";
-
-        downloadLink.style.left =
-            "-99999px";
-
-        downloadLink.style.top =
-            "0";
-
-        downloadLink.style.width =
-            "1px";
-
-        downloadLink.style.height =
-            "1px";
-
-        downloadLink.style.opacity =
-            "0";
-
-
-        downloadLink.href =
-            objectURL;
-
-
-        downloadLink.download =
-            `SPL_${namaFile}.png`;
-
-
-        document.body.appendChild(
-            downloadLink
-        );
-
-
-        await new Promise(
-            function(resolve) {
-
-                requestAnimationFrame(
-                    function() {
-
-                        try {
-
-                            downloadLink.click();
-
-                        }
-
-                        catch (e) {
-
-                            console.error(
-                                "[PNG] Download error:",
-                                e
-                            );
-
-                        }
-
-
-                        setTimeout(
-                            resolve,
-                            500
-                        );
-
-                    }
-                );
-
-            }
-        );
-
+        await new Promise(function(resolve) {
+            requestAnimationFrame(function() {
+                try {
+                    downloadLink.click();
+                }
+                catch (e) {
+                    console.error("[PNG] Download error:", e);
+                }
+                setTimeout(resolve, 500);
+            });
+        });
 
         /* =====================================================
            SUCCESS
@@ -6071,12 +6032,7 @@ async function cetakPlanningPNG(idPlanning) {
                 downloadLink &&
                 downloadLink.parentNode
             ) {
-
-                downloadLink.parentNode
-                    .removeChild(
-                        downloadLink
-                    );
-
+                downloadLink.parentNode.removeChild(downloadLink);
             }
 
         }
@@ -6087,11 +6043,7 @@ async function cetakPlanningPNG(idPlanning) {
         try {
 
             if (objectURL) {
-
-                URL.revokeObjectURL(
-                    objectURL
-                );
-
+                URL.revokeObjectURL(objectURL);
             }
 
         }

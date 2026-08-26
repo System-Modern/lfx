@@ -229,6 +229,26 @@
 
         </button>
 
+
+        <button
+            type="button"
+            class="menu-item"
+            onclick="showPage('laporan', this)"
+        >
+
+            <span class="menu-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 3.5h9l3 3V20.5H6z"></path>
+                    <path d="M15 3.5v4h3M9 12h6M9 16h6"></path>
+                </svg>
+            </span>
+
+            <span>
+                Laporan Riwayat
+            </span>
+
+        </button>
+
     </div>
 
 </aside>
@@ -300,6 +320,17 @@
                         Kosongkan tanggal untuk menampilkan seluruh data
                     </span>
 
+                </div>
+
+
+                <div class="dashboard-motion" aria-hidden="true">
+                    <div class="motion-person">
+                        <span class="motion-head"></span>
+                        <span class="motion-body"></span>
+                        <span class="motion-arm motion-arm-left"></span>
+                        <span class="motion-arm motion-arm-right"></span>
+                    </div>
+                    <span class="motion-signal"></span>
                 </div>
 
             </div>
@@ -699,6 +730,89 @@
 
         </div>
 
+
+    </section>
+
+
+    <section
+        id="laporan"
+        class="page"
+    >
+
+        <div class="card report-card">
+
+            <div class="card-header">
+                <div>
+                    <h2>Laporan Riwayat Karyawan</h2>
+                    <p>Cari dan cetak riwayat lembur berdasarkan karyawan.</p>
+                </div>
+
+                <button
+                    type="button"
+                    class="btn-primary"
+                    id="printLaporanKaryawan"
+                >
+                    Cetak Riwayat
+                </button>
+            </div>
+
+            <div class="report-filters">
+                <div class="form-group">
+                    <label for="laporanKaryawan">Karyawan</label>
+                    <select id="laporanKaryawan">
+                        <option value="">Pilih karyawan</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="laporanTanggalAwal">Tanggal Mulai</label>
+                    <input type="date" id="laporanTanggalAwal">
+                </div>
+
+                <div class="form-group">
+                    <label for="laporanTanggalAkhir">Tanggal Akhir</label>
+                    <input type="date" id="laporanTanggalAkhir">
+                </div>
+
+                <button type="button" class="btn-secondary" id="resetLaporanKaryawan">
+                    Reset
+                </button>
+            </div>
+        </div>
+
+        <div class="report-summary" id="laporanSummary">
+            <div class="summary-card"><span class="summary-label">Karyawan</span><strong id="laporanNama">-</strong></div>
+            <div class="summary-card"><span class="summary-label">Total Lembur</span><strong id="laporanTotalPlanning">0</strong></div>
+            <div class="summary-card"><span class="summary-label">Total Jam</span><strong id="laporanTotalJam">0 Jam</strong></div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2>Daftar Riwayat</h2>
+                    <p id="laporanPeriodeText">Pilih karyawan untuk melihat riwayat.</p>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Tanggal</th>
+                            <th>ID Planning</th>
+                            <th>Jam</th>
+                            <th>Durasi</th>
+                            <th>Jenis Lembur</th>
+                            <th>Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="laporanKaryawanTable">
+                        <tr><td colspan="7" class="empty-state-cell">Pilih karyawan untuk melihat riwayat.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
     </section>
 
