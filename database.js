@@ -686,6 +686,11 @@ function bentukDataPlanning(
                     item.buktiNama ??
                     "",
 
+                previewUrl:
+                    item.preview_url ??
+                    item.previewUrl ??
+                    "",
+
                 jenisLembur:
                     item.jenis_lembur ??
                     item.jenisLembur ??
@@ -1956,7 +1961,12 @@ async function simpanPlanningSupabase() {
 
                             status:
                                 item.status ??
-                                "Planning"
+                                "Planning",
+
+                            preview_url:
+                                item.previewUrl ??
+                                item.preview_url ??
+                                null
 
                         },
                         {
