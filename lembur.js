@@ -122,7 +122,8 @@
                     planningItem.buktiNama = file.name;
                 }
 
-                button.textContent = `↑ ${file.name}`;
+                button.textContent = "✓ Foto";
+                button.classList.add("has-file");
                 button.title = file.name;
                 showPlanningToast("success", "File berhasil diupload", file.name);
             } catch (error) {
@@ -198,6 +199,7 @@
             ?.querySelector(".planning-file-upload");
         if (uploadButton) {
             uploadButton.textContent = "↑ Upload";
+            uploadButton.classList.remove("has-file");
             uploadButton.title = "Upload File";
         }
 
@@ -1798,6 +1800,15 @@
                 ? { name: item.buktiNama }
                 : getPlanningEvidence(id);
 
+            const hasEvidence = Boolean(savedEvidence?.name || item.buktiUrl);
+            const uploadBtnText = hasEvidence ? "✓ Foto" : "↑ Upload";
+            const uploadBtnClass = hasEvidence
+                ? "planning-file-btn planning-file-upload has-file"
+                : "planning-file-btn planning-file-upload";
+            const uploadBtnTitle = hasEvidence
+                ? (savedEvidence?.name || item.buktiNama || "Foto Bukti")
+                : "Upload File";
+
             const namaKaryawanHTML =
                 Array.isArray(item.karyawan) && item.karyawan.length
                     ? item.karyawan
@@ -1930,14 +1941,12 @@
 
             <button
                 type="button"
-                class="planning-file-btn planning-file-upload"
+                class="${uploadBtnClass}"
                 data-action="upload"
                 data-id="${escapePlanningHTML(id)}"
-                title="Upload File"
+                title="${escapePlanningHTML(uploadBtnTitle)}"
             >
-                ↑ ${escapePlanningHTML(
-                    savedEvidence?.name || "Upload"
-                )}
+                ${escapePlanningHTML(uploadBtnText)}
             </button>
 
             <button

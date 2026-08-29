@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="id">
 
@@ -30,7 +31,9 @@
     <!-- =====================================================
          JSPDF
     ====================================================== -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -44,7 +47,7 @@
 
     <link
         rel="stylesheet"
-        href="style.css?v=20260826-2"
+        href="style.css?v=20260829-2"
     >
 
 </head>
@@ -230,6 +233,10 @@
         </button>
 
 
+        <!-- =================================================
+             LAPORAN
+        ================================================== -->
+
         <button
             type="button"
             class="menu-item"
@@ -237,10 +244,18 @@
         >
 
             <span class="menu-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
+
+                <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+
                     <path d="M6 3.5h9l3 3V20.5H6z"></path>
+
                     <path d="M15 3.5v4h3M9 12h6M9 16h6"></path>
+
                 </svg>
+
             </span>
 
             <span>
@@ -248,6 +263,7 @@
             </span>
 
         </button>
+
 
     </div>
 
@@ -276,7 +292,7 @@
 
             <p id="pageSubtitle">
                 Ringkasan planning lembur karyawan
-                            <th class="planning-action-header">
+            </p>
 
         </div>
 
@@ -323,14 +339,25 @@
                 </div>
 
 
-                <div class="dashboard-motion" aria-hidden="true">
+                <div
+                    class="dashboard-motion"
+                    aria-hidden="true"
+                >
+
                     <div class="motion-person">
+
                         <span class="motion-head"></span>
+
                         <span class="motion-body"></span>
+
                         <span class="motion-arm motion-arm-left"></span>
+
                         <span class="motion-arm motion-arm-right"></span>
+
                     </div>
+
                     <span class="motion-signal"></span>
+
                 </div>
 
             </div>
@@ -469,15 +496,16 @@
         <div class="dashboard-charts">
 
 
-            <!-- =================================================
-                 TREND MAND POWER
-            ================================================== -->
+            <!-- TREND MAND POWER -->
 
             <div class="card chart-card">
 
                 <div class="card-header">
 
-                    <div class="chart-heading-icon chart-heading-icon-trend" aria-hidden="true">
+                    <div
+                        class="chart-heading-icon chart-heading-icon-trend"
+                        aria-hidden="true"
+                    >
                         ↗
                     </div>
 
@@ -512,15 +540,16 @@
 
 
 
-            <!-- =================================================
-                 DISTRIBUSI DURASI
-            ================================================== -->
+            <!-- DISTRIBUSI DURASI -->
 
             <div class="card chart-card">
 
                 <div class="card-header">
 
-                    <div class="chart-heading-icon chart-heading-icon-duration" aria-hidden="true">
+                    <div
+                        class="chart-heading-icon chart-heading-icon-duration"
+                        aria-hidden="true"
+                    >
                         ◒
                     </div>
 
@@ -565,7 +594,10 @@
 
             <div class="card-header">
 
-                <div class="chart-heading-icon chart-heading-icon-ranking" aria-hidden="true">
+                <div
+                    class="chart-heading-icon chart-heading-icon-ranking"
+                    aria-hidden="true"
+                >
                     #1
                 </div>
 
@@ -734,6 +766,11 @@
     </section>
 
 
+
+    <!-- =================================================
+         LAPORAN
+    ================================================== -->
+
     <section
         id="laporan"
         class="page"
@@ -742,10 +779,19 @@
         <div class="card report-card">
 
             <div class="card-header">
+
                 <div>
-                    <h2>Laporan Riwayat Karyawan</h2>
-                    <p>Cari dan cetak riwayat lembur berdasarkan karyawan.</p>
+
+                    <h2>
+                        Laporan Riwayat Karyawan
+                    </h2>
+
+                    <p>
+                        Cari dan cetak riwayat lembur berdasarkan karyawan.
+                    </p>
+
                 </div>
+
 
                 <button
                     type="button"
@@ -754,64 +800,195 @@
                 >
                     Cetak Riwayat
                 </button>
+
             </div>
+
 
             <div class="report-filters">
+
                 <div class="form-group">
-                    <label for="laporanKaryawan">Karyawan</label>
+
+                    <label for="laporanKaryawan">
+                        Karyawan
+                    </label>
+
                     <select id="laporanKaryawan">
-                        <option value="">Pilih karyawan</option>
+
+                        <option value="">
+                            Pilih karyawan
+                        </option>
+
                     </select>
+
                 </div>
+
 
                 <div class="form-group">
-                    <label for="laporanTanggalAwal">Tanggal Mulai</label>
-                    <input type="date" id="laporanTanggalAwal">
+
+                    <label for="laporanTanggalAwal">
+                        Tanggal Mulai
+                    </label>
+
+                    <input
+                        type="date"
+                        id="laporanTanggalAwal"
+                    >
+
                 </div>
+
 
                 <div class="form-group">
-                    <label for="laporanTanggalAkhir">Tanggal Akhir</label>
-                    <input type="date" id="laporanTanggalAkhir">
+
+                    <label for="laporanTanggalAkhir">
+                        Tanggal Akhir
+                    </label>
+
+                    <input
+                        type="date"
+                        id="laporanTanggalAkhir"
+                    >
+
                 </div>
 
-                <button type="button" class="btn-secondary" id="resetLaporanKaryawan">
+
+                <button
+                    type="button"
+                    class="btn-secondary"
+                    id="resetLaporanKaryawan"
+                >
                     Reset
                 </button>
+
             </div>
+
         </div>
 
-        <div class="report-summary" id="laporanSummary">
-            <div class="summary-card"><span class="summary-label">Karyawan</span><strong id="laporanNama">-</strong></div>
-            <div class="summary-card"><span class="summary-label">Total Lembur</span><strong id="laporanTotalPlanning">0</strong></div>
-            <div class="summary-card"><span class="summary-label">Total Jam</span><strong id="laporanTotalJam">0 Jam</strong></div>
+
+        <div
+            class="report-summary"
+            id="laporanSummary"
+        >
+
+            <div class="summary-card">
+
+                <span class="summary-label">
+                    Karyawan
+                </span>
+
+                <strong id="laporanNama">
+                    -
+                </strong>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <span class="summary-label">
+                    Total Lembur
+                </span>
+
+                <strong id="laporanTotalPlanning">
+                    0
+                </strong>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <span class="summary-label">
+                    Total Jam
+                </span>
+
+                <strong id="laporanTotalJam">
+                    0 Jam
+                </strong>
+
+            </div>
+
         </div>
+
 
         <div class="card">
+
             <div class="card-header">
+
                 <div>
-                    <h2>Daftar Riwayat</h2>
-                    <p id="laporanPeriodeText">Pilih karyawan untuk melihat riwayat.</p>
+
+                    <h2>
+                        Daftar Riwayat
+                    </h2>
+
+                    <p id="laporanPeriodeText">
+                        Pilih karyawan untuk melihat riwayat.
+                    </p>
+
                 </div>
+
             </div>
 
+
             <div class="table-wrapper">
+
                 <table>
+
                     <thead>
+
                         <tr>
-                            <th>No</th>
-                            <th>Tanggal</th>
-                            <th>ID Planning</th>
-                            <th>Jam</th>
-                            <th>Durasi</th>
-                            <th>Jenis Lembur</th>
-                            <th>Keterangan</th>
+
+                            <th>
+                                No
+                            </th>
+
+                            <th>
+                                Tanggal
+                            </th>
+
+                            <th>
+                                ID Planning
+                            </th>
+
+                            <th>
+                                Jam
+                            </th>
+
+                            <th>
+                                Durasi
+                            </th>
+
+                            <th>
+                                Jenis Lembur
+                            </th>
+
+                            <th>
+                                Keterangan
+                            </th>
+
                         </tr>
+
                     </thead>
+
+
                     <tbody id="laporanKaryawanTable">
-                        <tr><td colspan="7" class="empty-state-cell">Pilih karyawan untuk melihat riwayat.</td></tr>
+
+                        <tr>
+
+                            <td
+                                colspan="7"
+                                class="empty-state-cell"
+                            >
+                                Pilih karyawan untuk melihat riwayat.
+                            </td>
+
+                        </tr>
+
                     </tbody>
+
                 </table>
+
             </div>
+
         </div>
 
     </section>
@@ -828,9 +1005,7 @@
     >
 
 
-        <!-- =================================================
-             SUMMARY KARYAWAN
-        ================================================== -->
+        <!-- SUMMARY KARYAWAN -->
 
         <div class="karyawan-summary">
 
@@ -884,9 +1059,7 @@
 
 
 
-        <!-- =================================================
-             TAMBAH KARYAWAN
-        ================================================== -->
+        <!-- TAMBAH KARYAWAN -->
 
         <div class="card">
 
@@ -952,6 +1125,23 @@
 
                     </div>
 
+
+                    <!-- TANGGAL LAHIR -->
+
+                    <div class="form-group">
+
+                        <label>
+                            Tanggal Lahir
+                        </label>
+
+                        <input
+                            type="date"
+                            id="tanggalLahirKaryawan"
+                            required
+                        >
+
+                    </div>
+
                 </div>
 
 
@@ -978,9 +1168,7 @@
 
 
 
-        <!-- =================================================
-             DATABASE KARYAWAN
-        ================================================== -->
+        <!-- DATABASE KARYAWAN -->
 
         <div class="card">
 
@@ -1004,7 +1192,7 @@
                     <input
                         type="text"
                         id="searchKaryawan"
-                        placeholder="Cari ID atau nama..."
+                        placeholder="Cari ID, nama, tgl lahir..."
                     >
 
                 </div>
@@ -1030,6 +1218,10 @@
 
                             <th>
                                 Nama
+                            </th>
+
+                            <th>
+                                Tanggal Lahir
                             </th>
 
                             <th>
@@ -1098,9 +1290,7 @@
 
 
 
-            <!-- =================================================
-                 FILTER PLANNING
-            ================================================== -->
+            <!-- FILTER PLANNING -->
 
             <div
                 style="
@@ -1565,6 +1755,190 @@
 
 
 <!-- =====================================================
+     MODAL EDIT KARYAWAN
+====================================================== -->
+
+<div
+    id="editKaryawanModal"
+    class="modal"
+>
+
+    <div
+        class="modal-content"
+        style="max-width:520px;"
+    >
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2>
+                    Edit Data Karyawan
+                </h2>
+
+                <p>
+                    Ubah ID/NIK, Nama, atau Tanggal Lahir karyawan
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                class="modal-close"
+                onclick="closeEditKaryawanModal()"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form id="formEditKaryawan">
+
+            <input
+                type="hidden"
+                id="editKaryawanIndex"
+            >
+
+            <input
+                type="hidden"
+                id="editKaryawanOldId"
+            >
+
+
+            <div
+                class="form-group"
+                style="margin-bottom:16px;"
+            >
+
+                <label>
+                    ID / NIK Karyawan
+                    <span style="color:#d71920;font-weight:800;">
+                        *
+                    </span>
+                </label>
+
+                <input
+                    type="text"
+                    id="editIdKaryawan"
+                    placeholder="Contoh: 92250566"
+                    autocomplete="off"
+                    inputmode="numeric"
+                    pattern="[0-9]+"
+                    oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                    required
+                >
+
+            </div>
+
+
+            <div
+                class="form-group"
+                style="margin-bottom:16px;"
+            >
+
+                <label>
+                    Nama Karyawan
+                    <span style="color:#d71920;font-weight:800;">
+                        *
+                    </span>
+                </label>
+
+                <input
+                    type="text"
+                    id="editNamaKaryawan"
+                    placeholder="Masukkan nama karyawan"
+                    autocomplete="off"
+                    required
+                >
+
+            </div>
+
+
+            <div
+                class="form-group"
+                style="margin-bottom:16px;"
+            >
+
+                <label>
+                    Tanggal Lahir
+                    <span style="color:#d71920;font-weight:800;">
+                        *
+                    </span>
+                </label>
+
+                <input
+                    type="date"
+                    id="editTanggalLahirKaryawan"
+                    required
+                >
+
+            </div>
+
+
+            <div
+                class="edit-karyawan-note"
+                style="
+                    background:#fff7e6;
+                    border:1px solid #fed7aa;
+                    border-radius:8px;
+                    padding:12px;
+                    margin-bottom:16px;
+                    font-size:12px;
+                    color:#9a3412;
+                    display:flex;
+                    gap:8px;
+                    align-items:flex-start;
+                "
+            >
+
+                <span style="font-size:16px;">
+                    ℹ️
+                </span>
+
+                <span>
+
+                    <strong>
+                        Sinkronisasi Otomatis:
+                    </strong>
+
+                    Perubahan ID/NIK dan Nama akan langsung diperbarui
+                    di seluruh riwayat planning lembur.
+
+                </span>
+
+            </div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn-cancel"
+                    onclick="closeEditKaryawanModal()"
+                >
+                    Batal
+                </button>
+
+
+                <button
+                    type="submit"
+                    class="btn-primary"
+                >
+                    Simpan Perubahan
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+
+<!-- =====================================================
      MODAL PLANNING
 ====================================================== -->
 
@@ -1643,6 +2017,9 @@
 
                 </div>
 
+
+                <!-- JENIS -->
+
                 <div class="form-group">
 
                     <label>
@@ -1650,8 +2027,15 @@
                     </label>
 
                     <select id="jenisLembur">
-                        <option value="harian">Harian</option>
-                        <option value="tanggal_merah">Tanggal Merah</option>
+
+                        <option value="harian">
+                            Harian
+                        </option>
+
+                        <option value="tanggal_merah">
+                            Tanggal Merah
+                        </option>
+
                     </select>
 
                 </div>
@@ -1866,15 +2250,16 @@
      JAVASCRIPT
 ====================================================== -->
 
-<script src="database.js"></script>
+<script src="database.js?v=20260829-2"></script>
 
-<script src="karyawan.js"></script>
+<script src="karyawan.js?v=20260829-2"></script>
 
-<script src="lembur.js"></script>
+<script src="lembur.js?v=20260829-2"></script>
 
-<script src="app.js"></script>
+<script src="app.js?v=20260829-2"></script>
 
 
 </body>
 
 </html>
+```

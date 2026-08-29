@@ -216,6 +216,18 @@ function normalisasiKaryawanData(data) {
                     item.alasanPenalti
                 );
 
+            const tanggalLahir =
+                normalizeText(
+                    item.tanggal_lahir ??
+                    item.tanggalLahir
+                );
+
+            const isDeleted = Boolean(
+                item.is_deleted ??
+                item.isDeleted ??
+                false
+            );
+
             return {
 
                 id,
@@ -224,7 +236,11 @@ function normalisasiKaryawanData(data) {
 
                 status,
 
-                alasanPenalti
+                alasanPenalti,
+
+                tanggalLahir,
+
+                isDeleted
 
             };
 
@@ -267,6 +283,18 @@ function normalisasiKaryawanDatabase(data) {
 
             normalized.idDatabase =
                 item.id;
+
+            normalized.tanggalLahir =
+                normalizeText(
+                    item.tanggal_lahir ??
+                    item.tanggalLahir
+                );
+
+            normalized.isDeleted = Boolean(
+                item.is_deleted ??
+                item.isDeleted ??
+                false
+            );
 
             return normalized;
 
@@ -556,6 +584,11 @@ function bentukDataPlanning(
                             nama:
                                 normalizeText(
                                     data.nama
+                                ),
+
+                            tanggalLahir:
+                                normalizeText(
+                                    data.tanggalLahir
                                 )
 
                         };
@@ -727,9 +760,14 @@ async function loadDatabase() {
         }
 
 
-        karyawan =
+        const allNormalizedKaryawan =
             normalisasiKaryawanDatabase(
                 rawKaryawan
+            );
+
+        karyawan =
+            allNormalizedKaryawan.filter(
+                k => !k.isDeleted && k.status !== "DELETED"
             );
 
         window.karyawan =
@@ -767,7 +805,7 @@ async function loadDatabase() {
             bentukDataPlanning(
                 dataPlanning,
                 dataRelasi,
-                karyawan
+                allNormalizedKaryawan
             );
 
         window.planning =
@@ -1049,6 +1087,11 @@ async function simpanKaryawanSupabase() {
             const old =
                 oldMap.get(id);
 
+            const databaseId =
+                item.databaseId ||
+                item.idDatabase ||
+                old?.databaseId;
+
 
             const currentData = {
 
@@ -1069,6 +1112,14 @@ async function simpanKaryawanSupabase() {
                     )
 
             };
+
+            if (item.tanggalLahir || item.tanggal_lahir) {
+                currentData.tanggal_lahir = item.tanggalLahir || item.tanggal_lahir;
+            }
+
+            if (databaseId) {
+                currentData.id = databaseId;
+            }
 
 
             /* =========================================
@@ -1106,6 +1157,12 @@ async function simpanKaryawanSupabase() {
                     old.alasan_penalti
                 );
 
+            const oldTanggalLahir =
+                normalizeText(
+                    old.tanggalLahir ??
+                    old.tanggal_lahir
+                );
+
 
             /* =========================================
                CEK PERUBAHAN
@@ -1119,7 +1176,10 @@ async function simpanKaryawanSupabase() {
                 currentData.status ||
 
                 oldAlasan !==
-                currentData.alasan_penalti
+                currentData.alasan_penalti ||
+
+                oldTanggalLahir !==
+                (currentData.tanggal_lahir || "")
             ) {
 
                 changedData.push(
@@ -1132,30 +1192,124 @@ async function simpanKaryawanSupabase() {
 
 
         /* =============================================
-           UPSERT YANG BERUBAH SAJA
+           SIMPAN YANG BERUBAH SAJA
         ============================================= */
 
         if (
             changedData.length > 0
         ) {
 
-            const {
-                error
-            } =
-                await supabaseClient
-                    .from("karyawan")
-                    .upsert(
-                        changedData,
-                        {
-                            onConflict:
-                                "kode_karyawan"
+            for (
+                const itemData of changedData
+            ) {
+
+                if (itemData.id) {
+
+                    const updatePayload = {
+                        kode_karyawan: itemData.kode_karyawan,
+                        nama: itemData.nama,
+                        status: itemData.status,
+                        alasan_penalti: itemData.alasan_penalti
+                    };
+
+                    if (itemData.tanggal_lahir) {
+                        updatePayload.tanggal_lahir = itemData.tanggal_lahir;
+                    }
+
+                    let {
+                        error
+                    } =
+                        await supabaseClient
+                            .from("karyawan")
+                            .update(updatePayload)
+                            .eq(
+                                "id",
+                                itemData.id
+                            );
+
+                    // Fallback jika kolom tanggal_lahir belum ada di Supabase
+                    if (error && (error.message?.includes("tanggal_lahir") || error.message?.includes("schema cache"))) {
+                        console.warn("Mencoba update tanpa kolom tanggal_lahir:", error.message);
+                        delete updatePayload.tanggal_lahir;
+                        const retry = await supabaseClient
+                            .from("karyawan")
+                            .update(updatePayload)
+                            .eq(
+                                "id",
+                                itemData.id
+                            );
+                        error = retry.error;
+                    }
+
+                    if (error) {
+                        throw error;
+                    }
+
+                } else {
+
+                    const insertPayload = {
+                        kode_karyawan: itemData.kode_karyawan,
+                        nama: itemData.nama,
+                        status: itemData.status,
+                        alasan_penalti: itemData.alasan_penalti
+                    };
+
+                    if (itemData.tanggal_lahir) {
+                        insertPayload.tanggal_lahir = itemData.tanggal_lahir;
+                    }
+
+                    let {
+                        data: inserted,
+                        error
+                    } =
+                        await supabaseClient
+                            .from("karyawan")
+                            .upsert(
+                                insertPayload,
+                                {
+                                    onConflict:
+                                        "kode_karyawan"
+                                }
+                            )
+                            .select(
+                                "id, kode_karyawan"
+                            )
+                            .single();
+
+                    // Fallback jika kolom tanggal_lahir belum ada di Supabase
+                    if (error && (error.message?.includes("tanggal_lahir") || error.message?.includes("schema cache"))) {
+                        console.warn("Mencoba insert tanpa kolom tanggal_lahir:", error.message);
+                        delete insertPayload.tanggal_lahir;
+                        const retry = await supabaseClient
+                            .from("karyawan")
+                            .upsert(
+                                insertPayload,
+                                {
+                                    onConflict:
+                                        "kode_karyawan"
+                                }
+                            )
+                            .select(
+                                "id, kode_karyawan"
+                            )
+                            .single();
+                        inserted = retry.data;
+                        error = retry.error;
+                    }
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    if (inserted) {
+                        const cur = current.find(k => normalizeId(k.id) === normalizeId(itemData.kode_karyawan));
+                        if (cur) {
+                            cur.databaseId = inserted.id;
+                            cur.idDatabase = inserted.id;
                         }
-                    );
+                    }
 
-
-            if (error) {
-
-                throw error;
+                }
 
             }
 
@@ -1185,7 +1339,7 @@ async function simpanKaryawanSupabase() {
 
 
         /* =============================================
-           HAPUS DATA
+           HAPUS DATA (SOFT DELETE AGAR PLANNING AMAN)
         ============================================= */
 
         if (
@@ -1208,22 +1362,35 @@ async function simpanKaryawanSupabase() {
                 }
 
 
-                const {
-                    error
-                } =
-                    await supabaseClient
-                        .from("karyawan")
-                        .delete()
-                        .eq(
-                            "kode_karyawan",
-                            id
-                        );
+                try {
+                    const {
+                        error
+                    } =
+                        await supabaseClient
+                            .from("karyawan")
+                            .update({
+                                is_deleted: true,
+                                status: "NONAKTIF"
+                            })
+                            .eq(
+                                "kode_karyawan",
+                                id
+                            );
 
-
-                if (error) {
-
-                    throw error;
-
+                    if (error) {
+                        // Fallback jika kolom is_deleted belum ada
+                        await supabaseClient
+                            .from("karyawan")
+                            .update({
+                                status: "NONAKTIF"
+                            })
+                            .eq(
+                                "kode_karyawan",
+                                id
+                            );
+                    }
+                } catch (delError) {
+                    console.warn("Gagal soft-delete karyawan:", delError);
                 }
 
             }
