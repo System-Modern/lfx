@@ -65,6 +65,63 @@
         }
     }
 
+    async function uploadPlanningPreview(idPlanning, blob) {
+        if (!supabaseClient) {
+            throw new Error("Koneksi Supabase belum tersedia.");
+        }
+
+        if (!(blob instanceof Blob) || blob.size <= 0) {
+            throw new Error("File preview PNG tidak valid.");
+        }
+
+        const safeId = String(idPlanning ?? "")
+            .trim()
+            .replace(/[^a-zA-Z0-9_-]/g, "_");
+
+        if (!safeId) {
+            throw new Error("ID planning tidak valid.");
+        }
+
+        const previewBucket = "planning-bukti";
+        const filePath = `${safeId}/preview/${Date.now()}-SPL_${safeId}.png`;
+        const { error: uploadError } = await supabaseClient.storage
+            .from(previewBucket)
+            .upload(filePath, blob, {
+                upsert: false,
+                contentType: "image/png",
+                cacheControl: "0"
+            });
+
+        if (uploadError) {
+            throw uploadError;
+        }
+
+        const { data: publicData } = supabaseClient.storage
+            .from(previewBucket)
+            .getPublicUrl(filePath);
+
+        if (!publicData?.publicUrl) {
+            throw new Error("URL publik preview tidak berhasil dibuat.");
+        }
+
+        const previewUrl = publicData.publicUrl;
+        const { error: updateError } = await supabaseClient
+            .from("planning_lembur")
+            .update({ preview_url: previewUrl })
+            .eq("kode_planning", idPlanning);
+
+        if (updateError) {
+            throw updateError;
+        }
+
+        const planningItem = findPlanningById(idPlanning);
+        if (planningItem) {
+            planningItem.previewUrl = previewUrl;
+        }
+
+        return previewUrl;
+    }
+
     async function uploadPlanningEvidence(id, button) {
         const input = document.createElement("input");
         input.type = "file";
@@ -122,7 +179,8 @@
                     planningItem.buktiNama = file.name;
                 }
 
-                button.textContent = `↑ ${file.name}`;
+                button.textContent = "✓ Foto";
+                button.classList.add("has-file");
                 button.title = file.name;
                 showPlanningToast("success", "File berhasil diupload", file.name);
             } catch (error) {
@@ -198,6 +256,7 @@
             ?.querySelector(".planning-file-upload");
         if (uploadButton) {
             uploadButton.textContent = "↑ Upload";
+            uploadButton.classList.remove("has-file");
             uploadButton.title = "Upload File";
         }
 
@@ -1637,6 +1696,17 @@
                 );
             }
 
+            const previewSaved =
+                await cetakPlanningPNG(
+                    idPlanning,
+                    {
+                        download: false,
+                        savePreview: true,
+                        allowWhileSaving: true,
+                        silent: true
+                    }
+                );
+
             renderPlanning();
 
             if (
@@ -1655,9 +1725,13 @@
             closePlanningModal();
 
             showPlanningToast(
-                "success",
-                "Planning berhasil dibuat",
-                `${selected.length} karyawan berhasil ditambahkan.`
+                previewSaved ? "success" : "warning",
+                previewSaved
+                    ? "Planning berhasil dibuat"
+                    : "Planning tersimpan, preview gagal dibuat",
+                previewSaved
+                    ? `${selected.length} karyawan berhasil ditambahkan dan preview tersimpan.`
+                    : "Data planning tersimpan, tetapi preview_url belum berhasil diperbarui."
             );
 
         } catch (error) {
@@ -1798,6 +1872,15 @@
                 ? { name: item.buktiNama }
                 : getPlanningEvidence(id);
 
+            const hasEvidence = Boolean(savedEvidence?.name || item.buktiUrl);
+            const uploadBtnText = hasEvidence ? "✓ Foto" : "↑ Upload";
+            const uploadBtnClass = hasEvidence
+                ? "planning-file-btn planning-file-upload has-file"
+                : "planning-file-btn planning-file-upload";
+            const uploadBtnTitle = hasEvidence
+                ? (savedEvidence?.name || item.buktiNama || "Foto Bukti")
+                : "Upload File";
+
             const namaKaryawanHTML =
                 Array.isArray(item.karyawan) && item.karyawan.length
                     ? item.karyawan
@@ -1930,14 +2013,12 @@
 
             <button
                 type="button"
-                class="planning-file-btn planning-file-upload"
+                class="${uploadBtnClass}"
                 data-action="upload"
                 data-id="${escapePlanningHTML(id)}"
-                title="Upload File"
+                title="${escapePlanningHTML(uploadBtnTitle)}"
             >
-                ↑ ${escapePlanningHTML(
-                    savedEvidence?.name || "Upload"
-                )}
+                ${escapePlanningHTML(uploadBtnText)}
             </button>
 
             <button
@@ -3610,6 +3691,17 @@
                 );
             }
 
+            const previewSaved =
+                await cetakPlanningPNG(
+                    idPlanning,
+                    {
+                        download: false,
+                        savePreview: true,
+                        allowWhileSaving: true,
+                        silent: true
+                    }
+                );
+
             renderPlanning();
 
             if (
@@ -3628,9 +3720,13 @@
             closePreviewPlanning();
 
             showPlanningToast(
-                "success",
-                "Perubahan berhasil disimpan",
-                "Data planning dan daftar karyawan berhasil diperbarui."
+                previewSaved ? "success" : "warning",
+                previewSaved
+                    ? "Perubahan berhasil disimpan"
+                    : "Perubahan tersimpan, preview gagal dibuat",
+                previewSaved
+                    ? "Data planning, daftar karyawan, dan preview berhasil diperbarui."
+                    : "Data planning tersimpan, tetapi preview_url belum berhasil diperbarui."
             );
 
         } catch (error) {
@@ -4160,26 +4256,36 @@
    CETAK PLANNING PDF
    ========================================================= */
 
-async function cetakPlanningPNG(idPlanning) {
+async function cetakPlanningPNG(idPlanning, options = {}) {
+
+    const shouldDownload = options.download !== false;
+    const shouldSavePreview = options.savePreview !== false;
+    const allowWhileSaving = options.allowWhileSaving === true;
+    const silent = options.silent === true;
+    const previousLoadingState = planningCRUDLoading;
 
     /* =========================================================
        VALIDASI
     ========================================================= */
 
-    if (planningCRUDLoading) {
-        return;
+    if (planningCRUDLoading && !allowWhileSaving) {
+        return false;
     }
 
     const item = findPlanningById(idPlanning);
 
     if (!item) {
-        alert("Data planning tidak ditemukan.");
-        return;
+        if (!silent) {
+            alert("Data planning tidak ditemukan.");
+        }
+        return false;
     }
 
     if (typeof html2canvas === "undefined") {
-        alert("html2canvas belum termuat.");
-        return;
+        if (!silent) {
+            alert("html2canvas belum termuat.");
+        }
+        return false;
     }
 
 
@@ -5929,10 +6035,6 @@ async function cetakPlanningPNG(idPlanning) {
             );
 
 
-        objectURL =
-            URL.createObjectURL(blob);
-
-
         const namaFile =
             String(idPlanning)
                 .replace(
@@ -5940,48 +6042,71 @@ async function cetakPlanningPNG(idPlanning) {
                     "_"
                 );
 
+        let previewSaved = !shouldSavePreview;
+        let previewError = null;
 
-        downloadLink =
-            document.createElement("a");
+        if (shouldSavePreview) {
+            showPlanningLoading("Menyimpan preview ke Supabase...");
 
-        downloadLink.style.position = "fixed";
-        downloadLink.style.left = "-99999px";
-        downloadLink.style.top = "0";
-        downloadLink.style.width = "1px";
-        downloadLink.style.height = "1px";
-        downloadLink.style.opacity = "0";
-        downloadLink.href = objectURL;
-        downloadLink.download = `SPL_${namaFile}.png`;
-        document.body.appendChild(downloadLink);
+            try {
+                await uploadPlanningPreview(idPlanning, blob);
+                previewSaved = true;
+            } catch (error) {
+                previewError = error;
+                console.error("[PREVIEW PNG] GAGAL DISIMPAN:", error);
+            }
+        }
 
-        await new Promise(function(resolve) {
-            requestAnimationFrame(function() {
-                try {
-                    downloadLink.click();
-                }
-                catch (e) {
-                    console.error("[PNG] Download error:", e);
-                }
-                setTimeout(resolve, 500);
+        if (shouldDownload) {
+            objectURL = URL.createObjectURL(blob);
+            downloadLink = document.createElement("a");
+
+            downloadLink.style.position = "fixed";
+            downloadLink.style.left = "-99999px";
+            downloadLink.style.top = "0";
+            downloadLink.style.width = "1px";
+            downloadLink.style.height = "1px";
+            downloadLink.style.opacity = "0";
+            downloadLink.href = objectURL;
+            downloadLink.download = `SPL_${namaFile}.png`;
+            document.body.appendChild(downloadLink);
+
+            await new Promise(function(resolve) {
+                requestAnimationFrame(function() {
+                    try {
+                        downloadLink.click();
+                    }
+                    catch (e) {
+                        console.error("[PNG] Download error:", e);
+                    }
+                    setTimeout(resolve, 500);
+                });
             });
-        });
+        }
 
         /* =====================================================
            SUCCESS
         ===================================================== */
 
         if (
+            !silent &&
             typeof showPlanningToast ===
             "function"
         ) {
 
             showPlanningToast(
-                "success",
-                "PNG berhasil dibuat",
-                `SPL ${idPlanning} berhasil dibuat.`
+                previewSaved ? "success" : "warning",
+                previewSaved
+                    ? "PNG berhasil dibuat"
+                    : "PNG dibuat, preview gagal disimpan",
+                previewSaved
+                    ? `SPL ${idPlanning} berhasil dibuat dan preview_url diperbarui.`
+                    : (previewError?.message || "File berhasil dibuat tetapi preview_url belum diperbarui.")
             );
 
         }
+
+        return previewSaved;
 
     }
 
@@ -5995,6 +6120,7 @@ async function cetakPlanningPNG(idPlanning) {
 
 
         if (
+            !silent &&
             typeof showPlanningToast ===
             "function"
         ) {
@@ -6010,7 +6136,7 @@ async function cetakPlanningPNG(idPlanning) {
 
         }
 
-        else {
+        else if (!silent) {
 
             alert(
                 error &&
@@ -6020,6 +6146,8 @@ async function cetakPlanningPNG(idPlanning) {
             );
 
         }
+
+        return false;
 
     }
 
@@ -6090,7 +6218,7 @@ async function cetakPlanningPNG(idPlanning) {
         catch (e) {}
 
 
-        planningCRUDLoading = false;
+        planningCRUDLoading = previousLoadingState;
 
     }
 
