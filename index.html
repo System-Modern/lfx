@@ -1,6 +1,5 @@
-```html
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="access-locked">
 
 <head>
 
@@ -50,10 +49,196 @@
         href="style.css?v=20260829-2"
     >
 
+    <style>
+        html.access-locked,
+        html.access-locked body {
+            min-height: 100%;
+            overflow: hidden;
+        }
+
+        html.access-locked body > :not(#accessGate):not(script) {
+            visibility: hidden !important;
+        }
+
+        #accessGate {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483647;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: linear-gradient(145deg, #17191f, #3b1013);
+            font-family: Arial, sans-serif;
+        }
+
+        html:not(.access-locked) #accessGate {
+            display: none;
+        }
+
+        .access-card {
+            width: min(390px, 100%);
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, .98);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, .38);
+        }
+
+        .access-card h1 {
+            margin: 0 0 8px;
+            color: #17191f;
+            font-size: 23px;
+        }
+
+        .access-card p {
+            margin: 0 0 22px;
+            color: #667085;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .access-card label {
+            display: block;
+            margin-bottom: 7px;
+            color: #344054;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .access-card input {
+            width: 100%;
+            box-sizing: border-box;
+            height: 44px;
+            padding: 0 13px;
+            border: 1px solid #d0d5dd;
+            border-radius: 10px;
+            outline: none;
+            font-size: 15px;
+        }
+
+        .access-card input:focus {
+            border-color: #d71920;
+            box-shadow: 0 0 0 3px rgba(215, 25, 32, .12);
+        }
+
+        .access-submit {
+            width: 100%;
+            height: 43px;
+            margin-top: 14px;
+            border: 0;
+            border-radius: 10px;
+            background: #d71920;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .access-submit:disabled {
+            opacity: .65;
+            cursor: wait;
+        }
+
+        #accessError {
+            min-height: 18px;
+            margin: 10px 0 0;
+            color: #b42318;
+            font-size: 12px;
+            font-weight: 700;
+        }
+    </style>
+
+    <script>
+        (function () {
+            const tokenKey = "linfox_index_access";
+            const validToken = "013d85c2e9f20476da1976aa8c9626f347e25e9ecb09ded921449cc52b94f059";
+
+            try {
+                if (sessionStorage.getItem(tokenKey) === validToken) {
+                    document.documentElement.classList.remove("access-locked");
+                }
+            } catch (error) {
+                console.warn("Token akses tidak dapat dibaca:", error);
+            }
+        })();
+    </script>
+
 </head>
 
 
 <body>
+
+<div id="accessGate" role="dialog" aria-modal="true" aria-labelledby="accessTitle">
+    <form id="accessForm" class="access-card" autocomplete="off">
+        <h1 id="accessTitle">Akses Planning Lembur</h1>
+        <p>Masukkan sandi untuk membuka halaman utama.</p>
+
+        <label for="accessPassword">Sandi</label>
+        <input
+            id="accessPassword"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+            autofocus
+        >
+
+        <button id="accessSubmit" class="access-submit" type="submit">
+            Masuk
+        </button>
+
+        <div id="accessError" role="alert" aria-live="polite"></div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        const tokenKey = "linfox_index_access";
+        const validToken = "013d85c2e9f20476da1976aa8c9626f347e25e9ecb09ded921449cc52b94f059";
+        const form = document.getElementById("accessForm");
+        const passwordInput = document.getElementById("accessPassword");
+        const submitButton = document.getElementById("accessSubmit");
+        const errorBox = document.getElementById("accessError");
+
+        async function hashPassword(value) {
+            const data = new TextEncoder().encode(value);
+            const digest = await crypto.subtle.digest("SHA-256", data);
+
+            return Array.from(new Uint8Array(digest))
+                .map(function (byte) {
+                    return byte.toString(16).padStart(2, "0");
+                })
+                .join("");
+        }
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            errorBox.textContent = "";
+            submitButton.disabled = true;
+
+            try {
+                const passwordHash = await hashPassword(passwordInput.value);
+
+                if (passwordHash !== validToken) {
+                    passwordInput.value = "";
+                    passwordInput.focus();
+                    errorBox.textContent = "Sandi salah. Silakan coba lagi.";
+                    return;
+                }
+
+                sessionStorage.setItem(tokenKey, validToken);
+                document.documentElement.classList.remove("access-locked");
+                passwordInput.value = "";
+            } catch (error) {
+                console.error("Validasi sandi gagal:", error);
+                errorBox.textContent = "Browser tidak dapat memvalidasi sandi.";
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
+    })();
+</script>
 
 
 <!-- =====================================================
@@ -2262,4 +2447,3 @@
 </body>
 
 </html>
-```
