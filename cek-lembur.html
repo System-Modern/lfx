@@ -17,6 +17,9 @@
     ========================================================== -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
     <!-- =========================================================
          FONT
     ========================================================== -->
@@ -1682,6 +1685,45 @@
         }
 
 
+        .table-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            flex-wrap: wrap;
+        }
+
+
+        .btn-print-history {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 34px;
+            padding: 0 12px;
+            border: 0;
+            border-radius: 9px;
+            background: #d71920;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all .2s ease;
+        }
+
+
+        .btn-print-history:hover {
+            background: #b51218;
+            transform: translateY(-1px);
+        }
+
+
+        .btn-print-history:disabled {
+            opacity: .65;
+            cursor: wait;
+            transform: none;
+        }
+
+
         .table-wrapper {
             overflow-x: auto;
         }
@@ -2453,6 +2495,11 @@
 
                 flex-direction:
                     column;
+            }
+
+
+            .table-header-actions {
+                width: 100%;
             }
 
 
@@ -3338,12 +3385,25 @@
                     </div>
 
 
-                    <span
-                        id="tableCountBadge"
-                        class="table-count"
-                    >
-                        0 Planning
-                    </span>
+                    <div class="table-header-actions">
+
+                        <button
+                            type="button"
+                            id="btnCetakRiwayat"
+                            class="btn-print-history"
+                            onclick="cetakRiwayatLemburPDF()"
+                        >
+                            🖨 Cetak PDF
+                        </button>
+
+                        <span
+                            id="tableCountBadge"
+                            class="table-count"
+                        >
+                            0 Planning
+                        </span>
+
+                    </div>
 
                 </div>
 
@@ -3639,6 +3699,10 @@
 
         let currentPhotoName =
             "bukti-lembur";
+
+
+        let currentHistoryPrintData =
+            null;
 
 
         /* =========================================================
@@ -5693,6 +5757,10 @@ function formatTanggalLahirDisplay(dateStr) {
                     "none";
 
 
+                currentHistoryPrintData =
+                    null;
+
+
                 destroyCharts();
 
 
@@ -5868,6 +5936,35 @@ function formatTanggalLahirDisplay(dateStr) {
                     ? totalJam /
                         totalPlanning
                     : 0;
+
+
+            currentHistoryPrintData = {
+                employee: {
+                    nama,
+                    nik:
+                        employee.kode_karyawan ||
+                        "-",
+                    tanggalLahir:
+                        formatTanggalLahirDisplay(
+                            employee.tanggal_lahir ||
+                            employee.tanggalLahir
+                        ),
+                    status
+                },
+                plannings:
+                    Array.isArray(plannings)
+                        ? plannings.map(function (item) {
+                            return { ...item };
+                        })
+                        : [],
+                tanggalDari,
+                tanggalSampai,
+                periodText,
+                totalPlanning,
+                totalMenit,
+                totalJam,
+                rataRata
+            };
 
 
             document
@@ -6261,6 +6358,296 @@ function formatTanggalLahirDisplay(dateStr) {
                 },
                 100
             );
+
+        }
+
+
+        /* =========================================================
+           CETAK RIWAYAT LEMBUR PDF
+        ========================================================== */
+
+        async function cetakRiwayatLemburPDF() {
+
+            const button =
+                document.getElementById(
+                    "btnCetakRiwayat"
+                );
+
+
+            if (!currentHistoryPrintData) {
+
+                showAlert(
+                    "warning",
+                    "Cari data karyawan terlebih dahulu."
+                );
+
+                return;
+
+            }
+
+
+            if (
+                !window.jspdf ||
+                !window.jspdf.jsPDF
+            ) {
+
+                showAlert(
+                    "error",
+                    "Library PDF belum berhasil dimuat. Silakan refresh halaman."
+                );
+
+                return;
+
+            }
+
+
+            const originalText =
+                button?.textContent ||
+                "Cetak PDF";
+
+
+            if (button) {
+                button.disabled = true;
+                button.textContent =
+                    "⏳ Membuat PDF...";
+            }
+
+
+            try {
+
+                const data =
+                    currentHistoryPrintData;
+
+                const {
+                    jsPDF
+                } = window.jspdf;
+
+                const doc =
+                    new jsPDF({
+                        orientation: "landscape",
+                        unit: "mm",
+                        format: "a4"
+                    });
+
+
+                doc.setTextColor(215, 25, 32);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(15);
+                doc.text(
+                    "PT LINFOX LOGISTICS INDONESIA",
+                    14,
+                    14
+                );
+
+
+                doc.setTextColor(17, 24, 39);
+                doc.setFontSize(13);
+                doc.text(
+                    "Riwayat Planning Lembur Karyawan",
+                    14,
+                    22
+                );
+
+
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(9);
+                doc.text(
+                    `Nama: ${data.employee.nama}`,
+                    14,
+                    30
+                );
+                doc.text(
+                    `NIK: ${data.employee.nik}`,
+                    14,
+                    35
+                );
+                doc.text(
+                    `Tanggal Lahir: ${data.employee.tanggalLahir}`,
+                    90,
+                    30
+                );
+                doc.text(
+                    `Status: ${data.employee.status}`,
+                    90,
+                    35
+                );
+                doc.text(
+                    `Periode: ${data.periodText}`,
+                    170,
+                    30
+                );
+                doc.text(
+                    `Total: ${data.totalPlanning} planning / ${formatDurasi(data.totalMenit)}`,
+                    170,
+                    35
+                );
+
+
+                const rows =
+                    data.plannings.map(
+                        function (planning, index) {
+
+                            const kode =
+                                planning.kode_planning ||
+                                `PLN-${planning.id}`;
+
+                            const jenis =
+                                planning.jenis_lembur ===
+                                    "tanggal_merah"
+                                    ? "Tanggal Merah"
+                                    : "Harian";
+
+                            return [
+                                index + 1,
+                                formatTanggalIndo(
+                                    planning.tanggal
+                                ),
+                                kode,
+                                `${planning.jam_mulai || "-"} - ${planning.jam_selesai || "-"}`,
+                                planning.durasi ||
+                                    formatDurasi(
+                                        getDurasiMenit(
+                                            planning
+                                        )
+                                    ),
+                                jenis,
+                                planning.keterangan || "-",
+                                planning.status || "Planning",
+                                planning.preview_url
+                                    ? "Ada"
+                                    : "-",
+                                planning.bukti_url
+                                    ? "Ada"
+                                    : "-"
+                            ];
+
+                        }
+                    );
+
+
+                doc.autoTable({
+                    startY: 42,
+                    margin: {
+                        left: 10,
+                        right: 10
+                    },
+                    head: [[
+                        "No",
+                        "Tanggal",
+                        "ID Planning",
+                        "Jam Kerja",
+                        "Durasi",
+                        "Jenis",
+                        "Keterangan",
+                        "Status",
+                        "Bukti Planning",
+                        "TTD"
+                    ]],
+                    body:
+                        rows.length > 0
+                            ? rows
+                            : [[{
+                                content:
+                                    "Belum ada riwayat planning pada periode ini.",
+                                colSpan: 10,
+                                styles: {
+                                    halign: "center"
+                                }
+                            }]],
+                    theme: "grid",
+                    styles: {
+                        font: "helvetica",
+                        fontSize: 7,
+                        cellPadding: 2,
+                        overflow: "linebreak",
+                        valign: "middle"
+                    },
+                    headStyles: {
+                        fillColor: [215, 25, 32],
+                        textColor: [255, 255, 255],
+                        fontStyle: "bold",
+                        halign: "center"
+                    },
+                    alternateRowStyles: {
+                        fillColor: [248, 250, 252]
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 8, halign: "center" },
+                        1: { cellWidth: 21 },
+                        2: { cellWidth: 33 },
+                        3: { cellWidth: 27 },
+                        4: { cellWidth: 18 },
+                        5: { cellWidth: 23 },
+                        6: { cellWidth: 55 },
+                        7: { cellWidth: 20 },
+                        8: { cellWidth: 25, halign: "center" },
+                        9: { cellWidth: 15, halign: "center" }
+                    }
+                });
+
+
+                const totalPages =
+                    doc.internal.getNumberOfPages();
+
+
+                for (
+                    let page = 1;
+                    page <= totalPages;
+                    page++
+                ) {
+                    doc.setPage(page);
+                    doc.setFontSize(7);
+                    doc.setTextColor(102, 112, 133);
+                    doc.text(
+                        `Halaman ${page} dari ${totalPages}`,
+                        283,
+                        202,
+                        { align: "right" }
+                    );
+                }
+
+
+                const safeNik =
+                    String(data.employee.nik || "karyawan")
+                        .replace(/[^a-zA-Z0-9_-]/g, "_");
+
+                const safePeriod =
+                    `${data.tanggalDari}_${data.tanggalSampai}`
+                        .replace(/[^a-zA-Z0-9_-]/g, "_");
+
+
+                doc.save(
+                    `Riwayat_Lembur_${safeNik}_${safePeriod}.pdf`
+                );
+
+
+                showAlert(
+                    "info",
+                    "PDF riwayat berhasil dibuat dan didownload."
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Cetak PDF gagal:",
+                    error
+                );
+
+                showAlert(
+                    "error",
+                    error?.message ||
+                    "PDF riwayat gagal dibuat."
+                );
+
+            } finally {
+
+                if (button) {
+                    button.disabled = false;
+                    button.textContent =
+                        originalText;
+                }
+
+            }
 
         }
 
