@@ -100,6 +100,13 @@ function normalizeKaryawan(item) {
         item.tanggalLahir = item.tanggal_lahir || "";
     }
 
+    if (
+        item.tanggalPenalti === undefined ||
+        item.tanggalPenalti === null
+    ) {
+        item.tanggalPenalti = "";
+    }
+
     return item;
 
 }
@@ -706,6 +713,8 @@ function injectCRUDLoadingStyle() {
 
 
         .penalty-reason-text {
+
+            display: block;
 
             min-width: 0;
 
@@ -1323,14 +1332,6 @@ async function tambahKaryawan() {
 
         }
 
-        if (!tanggalLahir) {
-
-            throw new Error(
-                "Tanggal lahir karyawan wajib diisi."
-            );
-
-        }
-
         dataKaryawan =
             getDataKaryawan();
 
@@ -1565,11 +1566,6 @@ async function simpanEditKaryawan() {
 
     if (!namaBaru) {
         showCRUDToast("error", "Nama belum diisi", "Nama karyawan wajib diisi.");
-        return;
-    }
-
-    if (!tglBaru) {
-        showCRUDToast("error", "Tanggal lahir kosong", "Tanggal lahir karyawan wajib diisi.");
         return;
     }
 
@@ -2068,6 +2064,9 @@ function renderKaryawan() {
                     ""
                 ).trim();
 
+            const tanggalPenalti =
+                item.tanggalPenalti || "";
+
 
             const penaltyReasonHTML =
                 isPenalty
@@ -2100,6 +2099,16 @@ function renderKaryawan() {
                                     ${escapeHTML(
                                         alasanPenalti ||
                                         "Tidak ada keterangan"
+                                    )}
+                                </span>
+
+                                <span
+                                    class="penalty-reason-text"
+                                >
+                                    Tanggal: ${escapeHTML(
+                                        formatTanggalKaryawan(
+                                            tanggalPenalti
+                                        )
                                     )}
                                 </span>
 
@@ -2774,6 +2783,11 @@ function bukaModalPenalti(
             "alasanPenalti"
         );
 
+    const tanggalInput =
+        document.getElementById(
+            "tanggalPenalti"
+        );
+
 
     if (!modal) {
 
@@ -2809,6 +2823,20 @@ function bukaModalPenalti(
         alasanInput.value =
             data.alasanPenalti ||
             "";
+
+    }
+
+
+    if (tanggalInput) {
+
+        tanggalInput.value =
+            normalizeSearch(data.status) ===
+                "penalti"
+                ? (data.tanggalPenalti || "")
+                :
+            new Date()
+                .toISOString()
+                .split("T")[0];
 
     }
 
@@ -2922,6 +2950,11 @@ async function aktifkanPenalti() {
             "alasanPenalti"
         );
 
+    const tanggalInput =
+        document.getElementById(
+            "tanggalPenalti"
+        );
+
 
     const id =
         normalizeId(
@@ -2935,6 +2968,13 @@ async function aktifkanPenalti() {
         String(
             alasanInput
                 ? alasanInput.value
+                : ""
+        ).trim();
+
+    const tanggalPenalti =
+        String(
+            tanggalInput
+                ? tanggalInput.value
                 : ""
         ).trim();
 
@@ -2960,6 +3000,15 @@ async function aktifkanPenalti() {
 
             throw new Error(
                 "Alasan penalti wajib diisi."
+            );
+
+        }
+
+
+        if (!tanggalPenalti) {
+
+            throw new Error(
+                "Tanggal penalti wajib diisi."
             );
 
         }
@@ -2992,12 +3041,18 @@ async function aktifkanPenalti() {
         const alasanLama =
             data.alasanPenalti;
 
+        const tanggalPenaltiDataLama =
+            data.tanggalPenalti || "";
+
 
         data.status =
             "PENALTI";
 
         data.alasanPenalti =
             alasan;
+
+        data.tanggalPenalti =
+            tanggalPenalti;
 
 
         window.karyawan =
@@ -3021,6 +3076,9 @@ async function aktifkanPenalti() {
 
             data.alasanPenalti =
                 alasanLama;
+
+            data.tanggalPenalti =
+                tanggalPenaltiDataLama;
 
             window.karyawan =
                 dataKaryawan;
@@ -3126,6 +3184,9 @@ async function lepasPenalti(
     const alasanLama =
         data.alasanPenalti;
 
+    const tanggalPenaltiLama =
+        data.tanggalPenalti || "";
+
 
     try {
 
@@ -3140,7 +3201,6 @@ async function lepasPenalti(
 
         data.alasanPenalti =
             "";
-
 
         window.karyawan =
             dataKaryawan;
@@ -3163,6 +3223,9 @@ async function lepasPenalti(
 
             data.alasanPenalti =
                 alasanLama;
+
+            data.tanggalPenalti =
+                tanggalPenaltiLama;
 
             window.karyawan =
                 dataKaryawan;

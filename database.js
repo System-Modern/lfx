@@ -222,6 +222,11 @@ function normalisasiKaryawanData(data) {
                     item.tanggalLahir
                 );
 
+            const tanggalPenalti =
+                normalizeText(
+                    item.tanggalPenalti
+                );
+
             const isDeleted = Boolean(
                 item.is_deleted ??
                 item.isDeleted ??
@@ -239,6 +244,8 @@ function normalisasiKaryawanData(data) {
                 alasanPenalti,
 
                 tanggalLahir,
+
+                tanggalPenalti,
 
                 isDeleted
 
@@ -779,6 +786,93 @@ async function loadDatabase() {
             karyawan;
 
 
+        /* =============================================
+           LOAD DATA PENALTI TERAKHIR
+        ============================================= */
+
+        const {
+            data: rawPenalti,
+            error: rawPenaltiError
+        } =
+            await supabaseClient
+                .from("penalti")
+                .select(
+                    "id, karyawan_id, alasan, tanggal, aktif, created_at"
+                )
+                .order(
+                    "created_at",
+                    { ascending: false }
+                )
+                .order(
+                    "id",
+                    { ascending: false }
+                );
+
+
+        if (rawPenaltiError) {
+            throw rawPenaltiError;
+        }
+
+
+        const penaltiTerakhirMap =
+            new Map();
+
+
+        for (const item of rawPenalti || []) {
+
+            const karyawanDatabaseId =
+                String(item.karyawan_id || "");
+
+            if (
+                karyawanDatabaseId &&
+                !penaltiTerakhirMap.has(
+                    karyawanDatabaseId
+                )
+            ) {
+                penaltiTerakhirMap.set(
+                    karyawanDatabaseId,
+                    item
+                );
+            }
+
+        }
+
+
+        for (const item of karyawan) {
+
+            const penaltiTerakhir =
+                penaltiTerakhirMap.get(
+                    String(item.databaseId || "")
+                );
+
+            if (!penaltiTerakhir) {
+                item.tanggalPenalti = "";
+                continue;
+            }
+
+            item.tanggalPenalti =
+                normalizeText(
+                    penaltiTerakhir.tanggal
+                );
+
+            const penaltiAktif =
+                penaltiTerakhir.aktif === true;
+
+            item.alasanPenalti =
+                penaltiAktif
+                    ? normalizeText(
+                        penaltiTerakhir.alasan
+                    )
+                    : "";
+
+            item.status =
+                penaltiAktif
+                    ? "PENALTI"
+                    : "AKTIF";
+
+        }
+
+
         databaseKaryawanSnapshot =
             cloneData(
                 karyawan
@@ -1114,13 +1208,15 @@ async function simpanKaryawanSupabase() {
                     normalizeText(
                         item.alasanPenalti ??
                         item.alasan_penalti
-                    )
+                    ),
+
+                tanggal_lahir:
+                    normalizeText(
+                        item.tanggalLahir ??
+                        item.tanggal_lahir
+                    ) || null
 
             };
-
-            if (item.tanggalLahir || item.tanggal_lahir) {
-                currentData.tanggal_lahir = item.tanggalLahir || item.tanggal_lahir;
-            }
 
             if (databaseId) {
                 currentData.id = databaseId;
@@ -1214,12 +1310,9 @@ async function simpanKaryawanSupabase() {
                         kode_karyawan: itemData.kode_karyawan,
                         nama: itemData.nama,
                         status: itemData.status,
-                        alasan_penalti: itemData.alasan_penalti
+                        alasan_penalti: itemData.alasan_penalti,
+                        tanggal_lahir: itemData.tanggal_lahir
                     };
-
-                    if (itemData.tanggal_lahir) {
-                        updatePayload.tanggal_lahir = itemData.tanggal_lahir;
-                    }
 
                     let {
                         error
@@ -1256,12 +1349,9 @@ async function simpanKaryawanSupabase() {
                         kode_karyawan: itemData.kode_karyawan,
                         nama: itemData.nama,
                         status: itemData.status,
-                        alasan_penalti: itemData.alasan_penalti
+                        alasan_penalti: itemData.alasan_penalti,
+                        tanggal_lahir: itemData.tanggal_lahir
                     };
-
-                    if (itemData.tanggal_lahir) {
-                        insertPayload.tanggal_lahir = itemData.tanggal_lahir;
-                    }
 
                     let {
                         data: inserted,
@@ -1403,16 +1493,6 @@ async function simpanKaryawanSupabase() {
         }
 
 
-        /* =============================================
-           UPDATE SNAPSHOT
-        ============================================= */
-
-        databaseKaryawanSnapshot =
-            cloneData(
-                current
-            );
-
-
         return true;
 
     }
@@ -1532,13 +1612,26 @@ async function simpanPenaltiSupabase() {
                     previous.alasan_penalti
                 );
 
+            const currentTanggal =
+                normalizeText(
+                    item.tanggalPenalti
+                );
+
+            const oldTanggal =
+                normalizeText(
+                    previous.tanggalPenalti
+                );
+
 
             if (
                 oldStatus !==
                 currentStatus ||
 
                 oldAlasan !==
-                currentAlasan
+                currentAlasan ||
+
+                oldTanggal !==
+                currentTanggal
             ) {
 
                 changed.push(
@@ -1674,6 +1767,14 @@ async function simpanPenaltiSupabase() {
                     aplikasi.alasan_penalti
                 );
 
+            const tanggalPenalti =
+                normalizeText(
+                    aplikasi.tanggalPenalti
+                ) ||
+                new Date()
+                    .toISOString()
+                    .split("T")[0];
+
 
             /* =========================================
                PENALTI
@@ -1701,6 +1802,14 @@ async function simpanPenaltiSupabase() {
                             "aktif",
                             true
                         )
+                        .order(
+                            "created_at",
+                            { ascending: false }
+                        )
+                        .order(
+                            "id",
+                            { ascending: false }
+                        )
                         .limit(1);
 
 
@@ -1726,7 +1835,13 @@ async function simpanPenaltiSupabase() {
 
                                 alasan:
                                     alasan ||
-                                    "Penalti"
+                                    "Penalti",
+
+                                tanggal:
+                                    tanggalPenalti,
+
+                                aktif:
+                                    true
 
                             })
                             .eq(
@@ -1761,9 +1876,7 @@ async function simpanPenaltiSupabase() {
                                     "Penalti",
 
                                 tanggal:
-                                    new Date()
-                                        .toISOString()
-                                        .split("T")[0],
+                                    tanggalPenalti,
 
                                 aktif:
                                     true
@@ -1789,17 +1902,14 @@ async function simpanPenaltiSupabase() {
             else {
 
                 const {
+                    data:
+                        penaltyTerakhir,
                     error:
-                        updateError
+                        penaltyError
                 } =
                     await supabaseClient
                         .from("penalti")
-                        .update({
-
-                            aktif:
-                                false
-
-                        })
+                        .select("id")
                         .eq(
                             "karyawan_id",
                             databaseId
@@ -1807,12 +1917,48 @@ async function simpanPenaltiSupabase() {
                         .eq(
                             "aktif",
                             true
-                        );
+                        )
+                        .order(
+                            "created_at",
+                            { ascending: false }
+                        )
+                        .order(
+                            "id",
+                            { ascending: false }
+                        )
+                        .limit(1);
 
 
-                if (updateError) {
+                if (penaltyError) {
 
-                    throw updateError;
+                    throw penaltyError;
+
+                }
+
+
+                if (
+                    isArray(penaltyTerakhir) &&
+                    penaltyTerakhir.length > 0
+                ) {
+
+                    const {
+                        error:
+                            updateError
+                    } =
+                        await supabaseClient
+                            .from("penalti")
+                            .update({
+                                aktif: false
+                            })
+                            .eq(
+                                "id",
+                                penaltyTerakhir[0].id
+                            );
+
+
+                    if (updateError) {
+                        throw updateError;
+                    }
 
                 }
 
