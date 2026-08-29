@@ -7,6 +7,8 @@
 
     <title>Cek Planning Lembur Karyawan - LINFOX</title>
 
+    <link rel="stylesheet" href="Style.css">
+
     <!-- =========================================================
          SUPABASE
     ========================================================== -->
@@ -2284,6 +2286,47 @@
         }
 
 
+        .generate-photo {
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 6px;
+
+            height: 38px;
+
+            padding: 0 14px;
+
+            border-radius: 9px;
+
+            background: #2970ff;
+
+            color: white;
+
+            border: none;
+
+            font-size: 9px;
+
+            font-weight: 800;
+
+            cursor: pointer;
+        }
+
+
+        .generate-photo:hover {
+            background: #175cd3;
+        }
+
+
+        .generate-photo:disabled {
+            opacity: .6;
+
+            cursor: not-allowed;
+        }
+
+
         /* =========================================================
            FOOTER
         ========================================================== */
@@ -2581,10 +2624,7 @@
 
         <div class="header-inner">
 
-            <a
-                href="index.html"
-                class="brand"
-            >
+            <div class="brand">
 
                 <img
                     src="Logo.png"
@@ -2605,7 +2645,7 @@
 
                 </div>
 
-            </a>
+            </div>
 
 
             <div class="header-status">
@@ -3860,38 +3900,48 @@
 
         }
 
-/* =========================================================
-   FORMAT TANGGAL LAHIR
-   FORMAT: DD/MM/YYYY
-========================================================== */
 
-function formatTanggalLahirDisplay(dateStr) {
+        /* =========================================================
+           FORMAT TANGGAL LAHIR
+        ========================================================== */
 
-    if (!dateStr) {
-        return "-";
-    }
+        function formatTanggalLahirDisplay(
+            dateStr
+        ) {
 
-    const clean = String(dateStr).trim();
+            if (!dateStr) {
+                return "-";
+            }
 
-    /* DATABASE: YYYY-MM-DD */
-    if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
 
-        const [
-            year,
-            month,
-            day
-        ] = clean.split("-");
+            const clean =
+                String(dateStr)
+                    .trim();
 
-        return `${day}/${month}/${year}`;
-    }
 
-    /* JIKA SUDAH DD/MM/YYYY */
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(clean)) {
-        return clean;
-    }
+            if (
+                /^\d{4}-\d{2}-\d{2}$/
+                    .test(clean)
+            ) {
 
-    return clean;
-}
+                const [
+                    year,
+                    month,
+                    day
+                ] =
+                    clean.split("-");
+
+
+                return `${day}/${month}/${year}`;
+
+            }
+
+
+            return clean;
+
+        }
+
+
         /* =========================================================
            ESCAPE HTML
         ========================================================== */
