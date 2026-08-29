@@ -2242,47 +2242,6 @@
         }
 
 
-        .generate-photo {
-            display: inline-flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            gap: 6px;
-
-            height: 38px;
-
-            padding: 0 14px;
-
-            border-radius: 9px;
-
-            background: #2970ff;
-
-            color: white;
-
-            border: none;
-
-            font-size: 9px;
-
-            font-weight: 800;
-
-            cursor: pointer;
-        }
-
-
-        .generate-photo:hover {
-            background: #175cd3;
-        }
-
-
-        .generate-photo:disabled {
-            opacity: .6;
-
-            cursor: not-allowed;
-        }
-
-
         /* =========================================================
            FOOTER
         ========================================================== */
@@ -3413,7 +3372,9 @@
 
                                 <th>Status</th>
 
-                                <th>Bukti Foto</th>
+                                <th>Bukti Planning</th>
+
+                                <th>TTD</th>
 
                             </tr>
 
@@ -3512,14 +3473,6 @@
                     ↓ Buka / Download
                 </a>
 
-
-                <button
-                    type="button"
-                    id="btnGeneratePng"
-                    class="generate-photo"
-                >
-                    🖼 Generate PNG
-                </button>
 
             </div>
 
@@ -3675,12 +3628,6 @@
         const photoModalDownload =
             document.getElementById(
                 "photoModalDownload"
-            );
-
-
-        const btnGeneratePng =
-            document.getElementById(
-                "btnGeneratePng"
             );
 
 
@@ -6005,7 +5952,7 @@ function formatTanggalLahirDisplay(dateStr) {
 
                     <tr>
 
-                        <td colspan="9">
+                        <td colspan="10">
 
                             <div class="empty">
 
@@ -6143,34 +6090,30 @@ function formatTanggalLahirDisplay(dateStr) {
                                     "";
 
 
-                                let buktiHTML = `
-
+                                const emptyFileHTML = `
                                     <span class="no-photo">
-                                        Tidak ada foto
+                                        Tidak ada file
                                     </span>
-
                                 `;
 
+                                const safePreviewUrl =
+                                    escapeHTML(previewUrl);
 
-                                if (previewUrl || buktiUrl) {
+                                const safeBuktiUrl =
+                                    escapeHTML(buktiUrl);
 
-                                    const safePreviewUrl =
-                                        escapeHTML(previewUrl);
+                                const safePreviewName =
+                                    escapeHTML(`SPL_${kode}`);
 
-                                    const safeBuktiUrl =
-                                        escapeHTML(buktiUrl);
+                                const safeBuktiName =
+                                    escapeHTML(
+                                        planning.bukti_nama ||
+                                        kode
+                                    );
 
-                                    const safePreviewName =
-                                        escapeHTML(`SPL_${kode}`);
-
-                                    const safeBuktiName =
-                                        escapeHTML(
-                                            planning.bukti_nama ||
-                                            kode
-                                        );
-
-                                    const lihatButton = previewUrl
-                                        ? `
+                                const buktiPlanningHTML = previewUrl
+                                    ? `
+                                        <div class="photo-actions">
                                             <button
                                                 type="button"
                                                 class="btn-photo"
@@ -6181,11 +6124,13 @@ function formatTanggalLahirDisplay(dateStr) {
                                             >
                                                 👁 Lihat
                                             </button>
-                                          `
-                                        : "";
+                                        </div>
+                                      `
+                                    : emptyFileHTML;
 
-                                    const pngButton = buktiUrl
-                                        ? `
+                                const ttdHTML = buktiUrl
+                                    ? `
+                                        <div class="photo-actions">
                                             <button
                                                 type="button"
                                                 class="btn-download"
@@ -6196,17 +6141,9 @@ function formatTanggalLahirDisplay(dateStr) {
                                             >
                                                 🖼 PNG
                                             </button>
-                                          `
-                                        : "";
-
-                                    buktiHTML = `
-                                        <div class="photo-actions">
-                                            ${lihatButton}
-                                            ${pngButton}
                                         </div>
-                                    `;
-
-                                }
+                                      `
+                                    : emptyFileHTML;
 
 
                                 /* ======================
@@ -6285,7 +6222,12 @@ function formatTanggalLahirDisplay(dateStr) {
 
 
                                         <td>
-                                            ${buktiHTML}
+                                            ${buktiPlanningHTML}
+                                        </td>
+
+
+                                        <td>
+                                            ${ttdHTML}
                                         </td>
 
                                     </tr>
@@ -6495,10 +6437,6 @@ function formatTanggalLahirDisplay(dateStr) {
 
             photoModalDownload.target =
                 "_blank";
-
-
-            btnGeneratePng.disabled =
-                false;
 
 
             photoModal.classList.add(
@@ -7001,122 +6939,6 @@ function formatTanggalLahirDisplay(dateStr) {
 
         }
 
-
-        /* =========================================================
-           GENERATE PNG DARI MODAL
-        ========================================================== */
-
-        btnGeneratePng.addEventListener(
-            "click",
-            async function () {
-
-                if (!currentPhotoUrl) {
-
-                    showAlert(
-                        "warning",
-                        "Foto belum tersedia."
-                    );
-
-                    return;
-
-                }
-
-
-                const originalText =
-                    this.textContent;
-
-
-                this.disabled =
-                    true;
-
-
-                this.textContent =
-                    "⏳ Membuat PNG...";
-
-
-                try {
-
-                    const blob =
-                        await convertImageToPng(
-                            currentPhotoUrl
-                        );
-
-
-                    const blobUrl =
-                        URL.createObjectURL(
-                            blob
-                        );
-
-
-                    const link =
-                        document.createElement(
-                            "a"
-                        );
-
-
-                    link.href =
-                        blobUrl;
-
-
-                    link.download =
-                        `${currentPhotoName}.png`;
-
-
-                    document.body.appendChild(
-                        link
-                    );
-
-
-                    link.click();
-
-
-                    link.remove();
-
-
-                    setTimeout(
-                        function () {
-
-                            URL.revokeObjectURL(
-                                blobUrl
-                            );
-
-                        },
-                        1000
-                    );
-
-
-                    showAlert(
-                        "info",
-                        "PNG berhasil dibuat dan didownload."
-                    );
-
-
-                } catch (error) {
-
-                    console.error(
-                        "Generate PNG error:",
-                        error
-                    );
-
-
-                    showAlert(
-                        "warning",
-                        "PNG tidak bisa dibuat karena server foto tidak mengizinkan Canvas/CORS. Gunakan tombol Buka / Download."
-                    );
-
-                } finally {
-
-                    this.disabled =
-                        false;
-
-
-                    this.textContent =
-                        originalText;
-
-                }
-
-            }
-        );
 
     </script>
 
