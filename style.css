@@ -2291,6 +2291,20 @@ button {
     box-shadow: 0 4px 10px rgba(22,163,74,.15);
 }
 
+.planning-file-upload.has-file {
+    background: #16a34a;
+    color: #ffffff;
+    border: 1px solid #15803d;
+    font-weight: 700;
+}
+
+.planning-file-upload.has-file:hover {
+    background: #15803d;
+    color: #ffffff;
+    border-color: #166534;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);
+}
+
 
 /* DOWNLOAD */
 
@@ -2935,7 +2949,8 @@ td:last-child {
         9999;
 }
 
-.modal.show {
+.modal.show,
+.modal.active {
     display:
         flex;
 }

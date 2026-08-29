@@ -55,6 +55,24 @@ function getDataPlanning() {
    NORMALISASI KARYAWAN
 ===================================================== */
 
+function formatTanggalKaryawan(value) {
+
+    if (!value) {
+        return "-";
+    }
+
+    const str = String(value).trim();
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+        const [y, m, d] = str.split("-");
+        return `${d}/${m}/${y}`;
+    }
+
+    return str;
+
+}
+
+
 function normalizeKaryawan(item) {
 
     if (
@@ -73,6 +91,13 @@ function normalizeKaryawan(item) {
         item.alasanPenalti === null
     ) {
         item.alasanPenalti = "";
+    }
+
+    if (
+        item.tanggalLahir === undefined ||
+        item.tanggalLahir === null
+    ) {
+        item.tanggalLahir = item.tanggal_lahir || "";
     }
 
     return item;
@@ -1250,6 +1275,11 @@ async function tambahKaryawan() {
                 "namaKaryawan"
             );
 
+        const tglInput =
+            document.getElementById(
+                "tanggalLahirKaryawan"
+            );
+
         if (
             !idInput ||
             !namaInput
@@ -1271,6 +1301,11 @@ async function tambahKaryawan() {
                 namaInput.value || ""
             ).trim();
 
+        const tanggalLahir =
+            String(
+                tglInput?.value || ""
+            ).trim();
+
         updateCRUDLoading(
             25,
             "Memeriksa data..."
@@ -1284,6 +1319,14 @@ async function tambahKaryawan() {
 
             throw new Error(
                 "ID karyawan wajib berupa angka dan nama wajib diisi."
+            );
+
+        }
+
+        if (!tanggalLahir) {
+
+            throw new Error(
+                "Tanggal lahir karyawan wajib diisi."
             );
 
         }
@@ -1312,6 +1355,8 @@ async function tambahKaryawan() {
             id,
 
             nama,
+
+            tanggalLahir,
 
             status:
                 "AKTIF",
@@ -1356,6 +1401,9 @@ async function tambahKaryawan() {
 
         idInput.value = "";
         namaInput.value = "";
+        if (tglInput) {
+            tglInput.value = "";
+        }
 
         refreshKaryawanUI();
 
@@ -1383,7 +1431,12 @@ async function tambahKaryawan() {
 }
 
 
-async function editKaryawan(index) {
+/* =====================================================
+   EDIT KARYAWAN (MODAL)
+   SUPPORT EDIT NIK, NAMA, & TANGGAL LAHIR
+===================================================== */
+
+function editKaryawan(index) {
 
     if (crudProcessing) {
         return;
@@ -1400,63 +1453,168 @@ async function editKaryawan(index) {
         return;
     }
 
-    const namaLama =
-        String(data.nama || "").trim();
+    const modal =
+        document.getElementById("editKaryawanModal");
+    const indexInput =
+        document.getElementById("editKaryawanIndex");
+    const oldIdInput =
+        document.getElementById("editKaryawanOldId");
+    const idInput =
+        document.getElementById("editIdKaryawan");
+    const namaInput =
+        document.getElementById("editNamaKaryawan");
+    const tglInput =
+        document.getElementById("editTanggalLahirKaryawan");
 
-    const namaBaru =
-        window.prompt(
-            `Edit nama karyawan (${data.id})`,
-            namaLama
-        );
-
-    if (namaBaru === null) {
+    if (!modal) {
+        console.error("Modal editKaryawanModal tidak ditemukan!");
         return;
     }
 
-    const nama =
-        String(namaBaru).trim();
+    if (indexInput) indexInput.value = index;
+    if (oldIdInput) oldIdInput.value = data.id;
+    if (idInput) idInput.value = data.id;
+    if (namaInput) namaInput.value = data.nama || "";
+    if (tglInput) {
+        tglInput.value = data.tanggalLahir || data.tanggal_lahir || "";
+    }
 
-    if (!nama) {
+    modal.classList.add("show");
+    modal.classList.add("active");
+    modal.style.display = "flex";
+
+    setTimeout(() => {
+        if (idInput) {
+            idInput.focus();
+        }
+    }, 100);
+
+}
+
+
+function closeEditKaryawanModal() {
+
+    const modal =
+        document.getElementById("editKaryawanModal");
+
+    if (modal) {
+        modal.classList.remove("show");
+        modal.classList.remove("active");
+        modal.style.display = "none";
+    }
+
+}
+
+window.closeEditKaryawanModal = closeEditKaryawanModal;
+
+
+async function simpanEditKaryawan() {
+
+    if (crudProcessing) {
+        return;
+    }
+
+    const indexInput =
+        document.getElementById("editKaryawanIndex");
+    const oldIdInput =
+        document.getElementById("editKaryawanOldId");
+    const idInput =
+        document.getElementById("editIdKaryawan");
+    const namaInput =
+        document.getElementById("editNamaKaryawan");
+    const tglInput =
+        document.getElementById("editTanggalLahirKaryawan");
+
+    const index =
+        Number(indexInput?.value);
+
+    const dataKaryawan =
+        getDataKaryawan();
+
+    const data =
+        dataKaryawan[index];
+
+    if (!data) {
+        showCRUDToast("error", "Data tidak ditemukan", "Karyawan sudah tidak tersedia.");
+        closeEditKaryawanModal();
+        return;
+    }
+
+    const idBaru =
+        normalizeId(idInput?.value);
+
+    const namaBaru =
+        String(namaInput?.value || "").trim();
+
+    const tglBaru =
+        String(tglInput?.value || "").trim();
+
+    const idLama =
+        normalizeId(oldIdInput?.value || data.id);
+
+    const namaLama =
+        data.nama;
+
+    const tglLama =
+        data.tanggalLahir || "";
+
+    if (!idBaru || !/^\d+$/.test(idBaru)) {
+        showCRUDToast("error", "ID tidak valid", "ID / NIK Karyawan wajib berupa angka.");
+        return;
+    }
+
+    if (!namaBaru) {
         showCRUDToast("error", "Nama belum diisi", "Nama karyawan wajib diisi.");
         return;
     }
 
-    if (nama === namaLama) {
+    if (!tglBaru) {
+        showCRUDToast("error", "Tanggal lahir kosong", "Tanggal lahir karyawan wajib diisi.");
         return;
     }
 
-    if (!window.confirm(
-        `Ubah nama ${namaLama} menjadi ${nama}?\n\n` +
-        "Nama pada seluruh planning dan riwayat juga akan diperbarui."
-    )) {
+    // Cek apakah NIK baru bentrok dengan karyawan lain
+    if (idBaru !== idLama) {
+        const duplikat = dataKaryawan.some((item, i) => i !== index && normalizeId(item.id) === idBaru);
+        if (duplikat) {
+            showCRUDToast("error", "ID sudah terdaftar", `ID ${idBaru} sudah digunakan oleh karyawan lain.`);
+            return;
+        }
+    }
+
+    if (idBaru === idLama && namaBaru === namaLama && tglBaru === tglLama) {
+        closeEditKaryawanModal();
         return;
     }
 
-    if (!startCRUDProcess("Mengubah karyawan", "Menyinkronkan nama ke planning...")) {
+    if (!startCRUDProcess("Menyimpan perubahan", "Menyinkronkan data karyawan ke planning...")) {
         return;
     }
 
-    const id = normalizeId(data.id);
-    const namaSebelumnya = data.nama;
     const planningLama = getDataPlanning().map(item => ({
         ...item,
         karyawan: Array.isArray(item.karyawan)
-            ? item.karyawan.map(karyawan => ({ ...karyawan }))
+            ? item.karyawan.map(k => ({ ...k }))
             : item.karyawan
     }));
 
     try {
-        data.nama = nama;
+        data.id = idBaru;
+        data.nama = namaBaru;
+        data.tanggalLahir = tglBaru;
 
+        // Sinkronisasi otomatis ke seluruh riwayat planning lembur
         getDataPlanning().forEach(item => {
             if (!Array.isArray(item.karyawan)) {
                 return;
             }
 
-            item.karyawan.forEach(karyawan => {
-                if (normalizeId(karyawan.id) === id) {
-                    karyawan.nama = nama;
-                    karyawan.namaKaryawan = nama;
+            item.karyawan.forEach(k => {
+                if (normalizeId(k.id) === idLama) {
+                    k.id = idBaru;
+                    k.nama = namaBaru;
+                    k.namaKaryawan = namaBaru;
+                    k.tanggalLahir = tglBaru;
                 }
             });
         });
@@ -1464,19 +1622,32 @@ async function editKaryawan(index) {
         const berhasil = await saveKaryawanData();
 
         if (!berhasil) {
-            data.nama = namaSebelumnya;
+            data.id = idLama;
+            data.nama = namaLama;
+            data.tanggalLahir = tglLama;
             window.planning = planningLama;
             throw new Error("Perubahan gagal disimpan ke database.");
         }
 
+        closeEditKaryawanModal();
         refreshKaryawanUI();
+
+        if (typeof renderPlanning === "function") {
+            renderPlanning();
+        }
+
         finishCRUDProcess();
-        showCRUDToast("success", "Nama berhasil diubah", `${nama} (${data.id}) sudah diperbarui di seluruh planning.`);
+        showCRUDToast(
+            "success",
+            "Data berhasil diubah",
+            `${namaBaru} (${idBaru}) sudah diperbarui di master data dan seluruh planning lembur.`
+        );
     }
     catch (error) {
         cancelCRUDProcess();
-        showCRUDToast("error", "Perubahan gagal", error.message || "Nama karyawan gagal diubah.");
+        showCRUDToast("error", "Perubahan gagal", error.message || "Data karyawan gagal diubah.");
     }
+
 }
 
 
@@ -1765,11 +1936,29 @@ function renderKaryawan() {
                             item.nama
                         );
 
+                    const tgl =
+                        normalizeSearch(
+                            item.tanggalLahir || ""
+                        );
+
+                    const tglFmt =
+                        normalizeSearch(
+                            formatTanggalKaryawan(
+                                item.tanggalLahir
+                            )
+                        );
+
                     return (
                         id.includes(
                             search
                         ) ||
                         nama.includes(
+                            search
+                        ) ||
+                        tgl.includes(
+                            search
+                        ) ||
+                        tglFmt.includes(
                             search
                         )
                     );
@@ -1792,7 +1981,7 @@ function renderKaryawan() {
             <tr>
 
                 <td
-                    colspan="5"
+                    colspan="6"
                     class="empty-state-cell"
                 >
 
@@ -2022,6 +2211,14 @@ function renderKaryawan() {
                 <td>
                     ${escapeHTML(
                         item.nama
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHTML(
+                        formatTanggalKaryawan(
+                            item.tanggalLahir
+                        )
                     )}
                 </td>
 
@@ -3343,10 +3540,6 @@ function initPenaltyForm() {
 }
 
 
-/* =====================================================
-   MODAL EVENTS
-===================================================== */
-
 function initModalEvents() {
 
     const penaltyModal =
@@ -3412,6 +3605,66 @@ function initModalEvents() {
 
 
         historyModal.dataset.listener =
+            "true";
+
+    }
+
+
+    const editModal =
+        document.getElementById(
+            "editKaryawanModal"
+        );
+
+
+    if (
+        editModal &&
+        !editModal.dataset.listener
+    ) {
+
+        editModal.addEventListener(
+            "click",
+            event => {
+
+                if (
+                    event.target ===
+                    editModal
+                ) {
+
+                    closeEditKaryawanModal();
+
+                }
+
+            }
+        );
+
+        editModal.dataset.listener =
+            "true";
+
+    }
+
+
+    const formEdit =
+        document.getElementById(
+            "formEditKaryawan"
+        );
+
+    if (
+        formEdit &&
+        !formEdit.dataset.listener
+    ) {
+
+        formEdit.addEventListener(
+            "submit",
+            event => {
+
+                event.preventDefault();
+
+                simpanEditKaryawan();
+
+            }
+        );
+
+        formEdit.dataset.listener =
             "true";
 
     }
@@ -3623,6 +3876,15 @@ window.tambahKaryawan =
 
 window.editKaryawan =
     editKaryawan;
+
+window.closeEditKaryawanModal =
+    closeEditKaryawanModal;
+
+window.simpanEditKaryawan =
+    simpanEditKaryawan;
+
+window.formatTanggalKaryawan =
+    formatTanggalKaryawan;
 
 window.renderKaryawan =
     renderKaryawan;
