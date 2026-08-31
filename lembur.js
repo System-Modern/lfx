@@ -13,8 +13,7 @@
         toastTimer: null,
         loadingInitialized: false,
         searchInitialized: false,
-        previewEventsInitialized: false,
-        buttonFeedbackInitialized: false
+        previewEventsInitialized: false
     };
 
 
@@ -194,46 +193,6 @@
         input.click();
     }
 
-    function getPlanningStorageLocation(url) {
-        try {
-            const parsedUrl = new URL(url, window.location.href);
-            const markers = [
-                "/storage/v1/object/public/",
-                "/storage/v1/object/sign/",
-                "/storage/v1/object/authenticated/"
-            ];
-            const marker = markers.find(function (value) {
-                return parsedUrl.pathname.includes(value);
-            });
-
-            if (!marker) return null;
-
-            const parts = (parsedUrl.pathname.split(marker)[1] || "").split("/");
-            const bucket = decodeURIComponent(parts.shift() || "");
-            const path = parts.map(function (part) {
-                return decodeURIComponent(part);
-            }).join("/");
-
-            return bucket && path ? { bucket, path } : null;
-        } catch (error) {
-            return null;
-        }
-    }
-
-    function triggerPlanningEvidenceDownload(fileBlob, fileName) {
-        const link = document.createElement("a");
-        const objectUrl = URL.createObjectURL(fileBlob);
-        link.href = objectUrl;
-        link.download = fileName;
-        link.style.display = "none";
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(function () {
-            URL.revokeObjectURL(objectUrl);
-            link.remove();
-        }, 1000);
-    }
-
     async function downloadPlanningEvidence(id) {
         const planningItem = findPlanningById(id);
         const evidence = planningItem?.buktiUrl
@@ -245,36 +204,17 @@
             return;
         }
 
-        showPlanningLoading("Mengunduh bukti...");
-
         try {
-            const storageLocation = getPlanningStorageLocation(evidence.data);
-            let fileBlob;
-
-            if (storageLocation && supabaseClient) {
-                const { data, error } = await supabaseClient.storage
-                    .from(storageLocation.bucket)
-                    .download(storageLocation.path);
-
-                if (error) throw error;
-                fileBlob = data;
-            } else {
-                const response = await fetch(evidence.data);
-                if (!response.ok) {
-                    throw new Error(`Gagal mengambil bukti (${response.status}).`);
-                }
-                fileBlob = await response.blob();
-            }
-
-            if (!(fileBlob instanceof Blob) || fileBlob.size <= 0) {
-                throw new Error("File bukti kosong atau tidak dapat dibaca.");
-            }
-
-            triggerPlanningEvidenceDownload(fileBlob, evidence.name || `bukti-${id}`);
+            const response = await fetch(evidence.data);
+            const fileBlob = await response.blob();
+            const link = document.createElement("a");
+            const objectUrl = URL.createObjectURL(fileBlob);
+            link.href = objectUrl;
+            link.download = evidence.name || `bukti-${id}`;
+            link.click();
+            URL.revokeObjectURL(objectUrl);
         } catch (error) {
-            showPlanningToast("error", "Download gagal", error.message || "File bukti tidak dapat diunduh.");
-        } finally {
-            hidePlanningLoading();
+            window.open(evidence.data, "_blank", "noopener");
         }
     }
 
@@ -1563,133 +1503,6 @@
 
     }
 
-    function initPlanningButtonFeedback() {
-        if (PlanningState.buttonFeedbackInitialized) return;
-        PlanningState.buttonFeedbackInitialized = true;
-
-        const style = document.createElement("style");
-        style.id = "planningButtonFeedbackStyle";
-        style.textContent = `
-            button.planning-button-loading {
-                position: relative;
-                pointer-events: none;
-                opacity: .82;
-            }
-
-            button.planning-button-loading::after {
-                content: "";
-                position: absolute;
-                top: 50%;
-                right: 9px;
-                width: 12px;
-                height: 12px;
-                margin-top: -7px;
-                border: 2px solid currentColor;
-                border-right-color: transparent;
-                border-radius: 50%;
-                animation: planningButtonSpin .65s linear infinite;
-            }
-
-            @keyframes planningButtonSpin {
-                to { transform: rotate(360deg); }
-            }
-        `;
-        document.head.appendChild(style);
-
-        document.addEventListener("click", function (event) {
-            const button = event.target.closest("button");
-
-            if (
-                !button ||
-                button.disabled ||
-                button.dataset.skipLoading === "true" ||
-                button.classList.contains("menu-item")
-            ) {
-                return;
-            }
-
-            button.classList.add("planning-button-loading");
-            setTimeout(function () {
-                button.classList.remove("planning-button-loading");
-            }, 550);
-        });
-    }
-
-    function getPlanningManPower(item) {
-        const employeeLists = [
-            item?.karyawan,
-            item?.karyawanList,
-            item?.karyawanData,
-            item?.daftarKaryawan,
-            item?.employees,
-            item?.karyawanIds
-        ];
-
-        const employees = employeeLists.find(function (value) {
-            return Array.isArray(value);
-        });
-
-        return employees ? employees.length : (item?.karyawanId != null ? 1 : 0);
-    }
-
-    function getPlanningCopyMessage(item) {
-        const dateParts = String(item?.tanggal || "").split("-");
-        let formattedDate = formatTanggalPlanning(item?.tanggal);
-
-        if (dateParts.length === 3) {
-            const date = new Date(
-                Number(dateParts[0]),
-                Number(dateParts[1]) - 1,
-                Number(dateParts[2])
-            );
-
-            if (!Number.isNaN(date.getTime())) {
-                formattedDate = date.toLocaleDateString("id-ID", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric"
-                }).replace(",", "");
-            }
-        }
-
-        return `Berikut jadwal lembur hari ${formattedDate} total ${getPlanningManPower(item)} man power`;
-    }
-
-    async function copyPlanningMessage(id) {
-        const item = findPlanningById(id);
-
-        if (!item) {
-            showPlanningToast("error", "Planning tidak ditemukan", "Pesan tidak dapat disalin.");
-            return;
-        }
-
-        const message = getPlanningCopyMessage(item);
-
-        try {
-            if (navigator.clipboard?.writeText && window.isSecureContext) {
-                await navigator.clipboard.writeText(message);
-            } else {
-                const textarea = document.createElement("textarea");
-                textarea.value = message;
-                textarea.style.position = "fixed";
-                textarea.style.opacity = "0";
-                document.body.appendChild(textarea);
-                textarea.select();
-                const copied = document.execCommand("copy");
-                textarea.remove();
-
-                if (!copied) {
-                    throw new Error("Browser tidak mengizinkan penyalinan.");
-                }
-            }
-
-            showPlanningToast("success", "Pesan disalin", message);
-        } catch (error) {
-            showPlanningToast("error", "Gagal menyalin", "Izin clipboard tidak tersedia.");
-        }
-    }
-
 
     /* =========================================================
     GENERATE ID
@@ -2170,9 +1983,9 @@
                 class="planning-btn planning-btn-download"
                 data-action="cetak"
                 data-id="${escapePlanningHTML(id)}"
-                title="Download planning dan salin pesan"
+                title="Download Planning"
             >
-                ↓ Download + Salin Pesan
+                ↓ Download
             </button>
 
             <button
@@ -2295,9 +2108,8 @@
                     }
 
                     if (action === "cetak") {
-                        copyPlanningMessage(id);
-                        cetakPlanningPNG(id);
-                    }
+                    cetakPlanningPNG(id);
+                   }
 
                     if (action === "hapus") {
                         hapusPlanning(id);
@@ -4629,9 +4441,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         const masterKaryawan =
             Array.isArray(window.karyawanData)
                 ? window.karyawanData
-                : (Array.isArray(window.karyawan)
-                    ? window.karyawan
-                    : []);
+                : [];
 
 
         function getKaryawanKey(data) {
@@ -4657,8 +4467,6 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 "employeeId",
                 "employee_id",
                 "employeeID",
-                "kodeKaryawan",
-                "kode_karyawan",
                 "id",
                 "ID",
                 "nik",
@@ -4703,8 +4511,15 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 getKaryawanKey(data);
 
 
-            if (key !== null && key !== "") {
-                const foundByKey = masterKaryawan.find(
+            if (
+                key === null ||
+                key === ""
+            ) {
+                return null;
+            }
+
+
+            return masterKaryawan.find(
                 function(karyawan) {
 
                     const masterKey =
@@ -4731,22 +4546,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                     );
 
                 }
-                );
-
-                if (foundByKey) return foundByKey;
-            }
-
-            const name = typeof data === "object"
-                ? String(data.nama ?? data.namaKaryawan ?? "").trim().toLowerCase()
-                : "";
-
-            return name
-                ? masterKaryawan.find(function (karyawan) {
-                    return String(karyawan.nama ?? karyawan.namaKaryawan ?? "")
-                        .trim()
-                        .toLowerCase() === name;
-                }) || null
-                : null;
+            ) || null;
 
         }
 
@@ -5997,30 +5797,6 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
         if (logo) {
 
-            try {
-                const logoUrl = new URL(
-                    logo.getAttribute("src") || "Logo.png",
-                    window.location.href
-                );
-                const response = await fetch(logoUrl.href);
-
-                if (!response.ok) {
-                    throw new Error("Logo tidak dapat dimuat.");
-                }
-
-                const logoBlob = await response.blob();
-                const logoDataUrl = await new Promise(function (resolve, reject) {
-                    const reader = new FileReader();
-                    reader.onload = function () { resolve(reader.result); };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(logoBlob);
-                });
-
-                logo.src = logoDataUrl;
-            } catch (error) {
-                console.warn("Logo export memakai sumber asli:", error);
-            }
-
             await new Promise(
                 function(resolve) {
 
@@ -6663,8 +6439,6 @@ initPlanningFilters();
 
                 initPlanningToast();
 
-                initPlanningButtonFeedback();
-
             }
         );
 
@@ -6675,8 +6449,6 @@ initPlanningFilters();
         initPlanningGlobalEvents();
 
         initPlanningToast();
-
-        initPlanningButtonFeedback();
 
     }
 function initPlanningFilters() {
