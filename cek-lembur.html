@@ -585,8 +585,7 @@
             display: grid;
 
             grid-template-columns:
-                1.1fr
-                1fr
+                1.35fr
                 1fr
                 1fr;
 
@@ -2609,6 +2608,350 @@
 
         }
 
+    
+        /* =========================================================
+           PREMIUM UI ENHANCEMENTS — NIK ONLY
+        ========================================================== */
+
+        :root {
+            --premium-red: #d71920;
+            --premium-red-2: #ff3941;
+            --premium-ink: #101828;
+            --premium-glass: rgba(255,255,255,.78);
+        }
+
+        body {
+            background:
+                radial-gradient(circle at 8% 8%, rgba(215,25,32,.11), transparent 23%),
+                radial-gradient(circle at 92% 18%, rgba(41,112,255,.08), transparent 25%),
+                radial-gradient(circle at 50% 100%, rgba(18,183,106,.055), transparent 28%),
+                linear-gradient(180deg, #fbfcfe 0%, #f3f5f8 100%);
+            background-attachment: fixed;
+        }
+
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: .32;
+            background:
+                linear-gradient(115deg, transparent 0 45%, rgba(255,255,255,.5) 50%, transparent 55%);
+            background-size: 260% 260%;
+            animation: ambientSweep 18s ease-in-out infinite;
+        }
+
+        @keyframes ambientSweep {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        header {
+            background: rgba(255,255,255,.72);
+            box-shadow: 0 10px 35px rgba(16,24,40,.055);
+        }
+
+        .brand-logo {
+            transition: transform .35s cubic-bezier(.2,.8,.2,1), filter .35s ease;
+        }
+
+        .brand:hover .brand-logo {
+            transform: scale(1.06) rotate(-2deg);
+            filter: drop-shadow(0 8px 15px rgba(215,25,32,.18));
+        }
+
+        .hero {
+            isolation: isolate;
+            transform: translateZ(0);
+            box-shadow:
+                0 30px 80px rgba(215,25,32,.16),
+                inset 0 1px 0 rgba(255,255,255,.16);
+            animation: heroIn .65s cubic-bezier(.2,.8,.2,1) both;
+        }
+
+        .hero::before {
+            animation: heroOrb 9s ease-in-out infinite;
+        }
+
+        @keyframes heroOrb {
+            0%, 100% { transform: translate3d(0,0,0) scale(1); }
+            50% { transform: translate3d(-20px,18px,0) scale(1.08); }
+        }
+
+        @keyframes heroIn {
+            from { opacity: 0; transform: translateY(12px) scale(.985); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .search-card,
+        .profile-card,
+        .stat-card,
+        .chart-card,
+        .insight-item,
+        .table-card {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        .search-card {
+            border-color: rgba(16,24,40,.08);
+            box-shadow:
+                0 20px 55px rgba(16,24,40,.075),
+                0 2px 8px rgba(16,24,40,.035);
+            animation: cardIn .55s .08s cubic-bezier(.2,.8,.2,1) both;
+        }
+
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .search-icon {
+            position: relative;
+            overflow: hidden;
+            transition: transform .3s ease, box-shadow .3s ease;
+        }
+
+        .search-icon::after {
+            content: "";
+            position: absolute;
+            inset: -50%;
+            background: linear-gradient(120deg, transparent 35%, rgba(255,255,255,.75) 50%, transparent 65%);
+            transform: translateX(-70%) rotate(15deg);
+            animation: iconShine 3.8s ease-in-out infinite;
+        }
+
+        @keyframes iconShine {
+            0%, 55%, 100% { transform: translateX(-70%) rotate(15deg); }
+            75% { transform: translateX(70%) rotate(15deg); }
+        }
+
+        .form-group input {
+            height: 52px;
+            border-color: #d9dee7;
+            background: rgba(255,255,255,.88);
+            transition:
+                border-color .25s ease,
+                box-shadow .25s ease,
+                transform .25s ease,
+                background .25s ease;
+        }
+
+        .form-group input:hover {
+            background: #fff;
+            transform: translateY(-1px);
+        }
+
+        .form-group input:focus {
+            background: #fff;
+            border-color: var(--premium-red);
+            box-shadow:
+                0 0 0 4px rgba(215,25,32,.075),
+                0 10px 25px rgba(16,24,40,.055);
+            transform: translateY(-2px);
+        }
+
+        #inputNik {
+            letter-spacing: .7px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .period-info {
+            background: linear-gradient(90deg, #fff7f7, #fff, #f8fbff);
+            transition: transform .25s ease, box-shadow .25s ease;
+        }
+
+        .period-info:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(16,24,40,.05);
+        }
+
+        .btn {
+            position: relative;
+            overflow: hidden;
+            transition:
+                transform .25s cubic-bezier(.2,.8,.2,1),
+                box-shadow .25s ease,
+                background .25s ease;
+        }
+
+        .btn::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 65px;
+            left: -90px;
+            transform: skewX(-18deg);
+            background: rgba(255,255,255,.28);
+            transition: left .55s ease;
+        }
+
+        .btn:hover::after {
+            left: 120%;
+        }
+
+        .btn-submit {
+            min-height: 48px;
+            border-radius: 13px;
+            background: linear-gradient(135deg, #b51218 0%, #d71920 48%, #f02a31 100%);
+            box-shadow:
+                0 10px 25px rgba(215,25,32,.20),
+                inset 0 1px 0 rgba(255,255,255,.18);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-3px);
+            box-shadow:
+                0 16px 32px rgba(215,25,32,.26),
+                inset 0 1px 0 rgba(255,255,255,.2);
+        }
+
+        .btn-submit:active {
+            transform: translateY(-1px) scale(.99);
+        }
+
+        .profile-card {
+            animation: resultCard .55s cubic-bezier(.2,.8,.2,1) both;
+        }
+
+        @keyframes resultCard {
+            from { opacity: 0; transform: translateY(18px) scale(.99); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .avatar {
+            position: relative;
+            overflow: hidden;
+            box-shadow:
+                0 10px 25px rgba(215,25,32,.20),
+                inset 0 1px 0 rgba(255,255,255,.3);
+        }
+
+        .avatar::after {
+            content: "";
+            position: absolute;
+            width: 70%;
+            height: 25%;
+            top: -20%;
+            left: -15%;
+            transform: rotate(-25deg);
+            background: rgba(255,255,255,.28);
+            animation: avatarShine 4.5s ease-in-out infinite;
+        }
+
+        @keyframes avatarShine {
+            0%, 60%, 100% { transform: translateX(-20px) rotate(-25deg); }
+            80% { transform: translateX(95px) rotate(-25deg); }
+        }
+
+        .stat-card {
+            border-color: rgba(16,24,40,.065);
+            box-shadow:
+                0 5px 18px rgba(16,24,40,.045),
+                inset 0 1px 0 rgba(255,255,255,.65);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow:
+                0 18px 35px rgba(16,24,40,.09),
+                inset 0 1px 0 rgba(255,255,255,.75);
+        }
+
+        .stat-icon {
+            transition: transform .3s ease;
+        }
+
+        .stat-card:hover .stat-icon {
+            transform: scale(1.08) rotate(-4deg);
+        }
+
+        .chart-card {
+            box-shadow: 0 8px 25px rgba(16,24,40,.045);
+        }
+
+        .chart-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 18px 40px rgba(16,24,40,.08);
+        }
+
+        .table-card {
+            box-shadow:
+                0 18px 45px rgba(16,24,40,.065),
+                0 2px 7px rgba(16,24,40,.025);
+        }
+
+        tbody tr {
+            transition: transform .2s ease, background .2s ease, box-shadow .2s ease;
+        }
+
+        tbody tr:hover td {
+            background: linear-gradient(90deg, #fffafa, #fff);
+        }
+
+        .status-badge {
+            box-shadow: 0 5px 15px rgba(16,24,40,.05);
+        }
+
+        .secure-badge {
+            background: rgba(248,250,252,.82);
+        }
+
+        .header-status .status-dot {
+            animation: onlinePulse 2.2s ease-in-out infinite;
+        }
+
+        @keyframes onlinePulse {
+            0%, 100% { box-shadow: 0 0 0 4px rgba(18,183,106,.10); }
+            50% { box-shadow: 0 0 0 7px rgba(18,183,106,.04); }
+        }
+
+        .spinner {
+            width: 15px;
+            height: 15px;
+            border-width: 2px;
+        }
+
+        .alert {
+            animation: alertIn .3s ease both;
+        }
+
+        @keyframes alertIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 950px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 700px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero {
+                box-shadow: 0 20px 45px rgba(215,25,32,.14);
+            }
+
+            .search-card {
+                box-shadow: 0 15px 35px rgba(16,24,40,.07);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            body::after,
+            .hero::before,
+            .search-icon::after,
+            .avatar::after {
+                animation: none !important;
+            }
+        }
+
     </style>
 </head>
 
@@ -2690,8 +3033,8 @@
 
                 <p>
                     Akses informasi planning lembur karyawan
-                    dengan memasukkan NIK, tanggal lahir,
-                    dan periode yang ingin diperiksa.
+                    cukup dengan memasukkan NIK dan periode yang ingin diperiksa.
+                    Data karyawan dan planning akan diambil langsung dari Supabase.
                 </p>
 
             </div>
@@ -2722,7 +3065,7 @@
                         </h2>
 
                         <p>
-                            Masukkan data sesuai identitas karyawan.
+                            Masukkan NIK karyawan. Data akan otomatis dicocokkan dengan database Supabase.
                         </p>
 
                     </div>
@@ -2731,7 +3074,7 @@
 
 
                 <div class="secure-badge">
-                    🔒 Data Terproteksi
+                    🟢 Supabase • Data Terproteksi
                 </div>
 
             </div>
@@ -2793,24 +3136,6 @@
                     </div>
 
 
-                    <!-- TANGGAL LAHIR -->
-
-                    <div class="form-group">
-
-                        <label for="inputTanggalLahir">
-                            Tanggal Lahir
-                        </label>
-
-
-                        <input
-                            type="date"
-                            id="inputTanggalLahir"
-                            required
-                        >
-
-                    </div>
-
-
                     <!-- DARI -->
 
                     <div class="form-group">
@@ -2857,9 +3182,9 @@
                     </span>
 
                     <span>
-                        Data planning akan ditampilkan untuk periode
+                        Data planning akan ditampilkan berdasarkan NIK
                         <strong>
-                            yang Anda pilih
+                            dan periode yang Anda pilih
                         </strong>.
                     </span>
 
@@ -2956,7 +3281,7 @@
 
 
                             <span>
-                                Tgl Lahir:
+                                Tanggal Lahir:
                                 <strong id="profileTglLahir">
                                     -
                                 </strong>
@@ -5408,18 +5733,7 @@
                         )
                         .value
                         .trim();
-
-
-                const tanggalLahir =
-                    document
-                        .getElementById(
-                            "inputTanggalLahir"
-                        )
-                        .value
-                        .trim();
-
-
-                const tanggalDari =
+const tanggalDari =
                     document
                         .getElementById(
                             "inputTanggalDari"
@@ -5440,21 +5754,12 @@
                 /* =========================================
                    VALIDASI
                 ========================================== */
-
-                if (
-                    !nik ||
-                    !tanggalLahir ||
-                    !tanggalDari ||
-                    !tanggalSampai
-                ) {
-
+                if (!nik || !tanggalDari || !tanggalSampai) {
                     showAlert(
                         "warning",
-                        "Mohon lengkapi NIK, tanggal lahir, tanggal dari, dan tanggal sampai."
+                        "Mohon lengkapi NIK, tanggal dari, dan tanggal sampai."
                     );
-
                     return;
-
                 }
 
 
@@ -5552,48 +5857,7 @@
 
                     const employee =
                         karyawanList[0];
-
-
-                    /* =====================================
-                       2. VALIDASI TANGGAL LAHIR
-                    ====================================== */
-
-                    const employeeTgl =
-                        String(
-                            employee.tanggal_lahir ||
-                            employee.tanggalLahir ||
-                            ""
-                        ).trim();
-
-
-                    if (!employeeTgl) {
-
-                        showAlert(
-                            "warning",
-                            "Tanggal lahir belum tersedia di database. Silakan hubungi admin."
-                        );
-
-                        return;
-
-                    }
-
-
-                    if (
-                        employeeTgl !==
-                        tanggalLahir
-                    ) {
-
-                        showAlert(
-                            "error",
-                            "NIK atau Tanggal Lahir tidak cocok. Silakan periksa kembali."
-                        );
-
-                        return;
-
-                    }
-
-
-                    /* =====================================
+/* =====================================
                        3. AMBIL RELASI
                     ====================================== */
 
@@ -5761,16 +6025,7 @@
                         "inputNik"
                     )
                     .value = "";
-
-
-                document
-                    .getElementById(
-                        "inputTanggalLahir"
-                    )
-                    .value = "";
-
-
-                document
+document
                     .getElementById(
                         "inputTanggalDari"
                     )
