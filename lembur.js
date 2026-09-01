@@ -2823,6 +2823,14 @@
                     >
                 </div>
 
+                <div class="planning-preview-field">
+                    <label>Jenis Lembur</label>
+                    <select id="previewJenisLembur">
+                        <option value="harian" ${item.jenisLembur !== "tanggal_merah" ? "selected" : ""}>Harian</option>
+                        <option value="tanggal_merah" ${item.jenisLembur === "tanggal_merah" ? "selected" : ""}>Tanggal Merah</option>
+                    </select>
+                </div>
+
                 <div class="planning-preview-field full">
                     <label>Keterangan</label>
                     <input
