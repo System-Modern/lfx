@@ -13,7 +13,8 @@
         toastTimer: null,
         loadingInitialized: false,
         searchInitialized: false,
-        previewEventsInitialized: false
+        previewEventsInitialized: false,
+        buttonFeedbackInitialized: false
     };
 
 
@@ -193,6 +194,46 @@
         input.click();
     }
 
+    function getPlanningStorageLocation(url) {
+        try {
+            const parsedUrl = new URL(url, window.location.href);
+            const markers = [
+                "/storage/v1/object/public/",
+                "/storage/v1/object/sign/",
+                "/storage/v1/object/authenticated/"
+            ];
+            const marker = markers.find(function (value) {
+                return parsedUrl.pathname.includes(value);
+            });
+
+            if (!marker) return null;
+
+            const parts = (parsedUrl.pathname.split(marker)[1] || "").split("/");
+            const bucket = decodeURIComponent(parts.shift() || "");
+            const path = parts.map(function (part) {
+                return decodeURIComponent(part);
+            }).join("/");
+
+            return bucket && path ? { bucket, path } : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function triggerPlanningEvidenceDownload(fileBlob, fileName) {
+        const link = document.createElement("a");
+        const objectUrl = URL.createObjectURL(fileBlob);
+        link.href = objectUrl;
+        link.download = fileName;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(function () {
+            URL.revokeObjectURL(objectUrl);
+            link.remove();
+        }, 1000);
+    }
+
     async function downloadPlanningEvidence(id) {
         const planningItem = findPlanningById(id);
         const evidence = planningItem?.buktiUrl
@@ -204,17 +245,36 @@
             return;
         }
 
+        showPlanningLoading("Mengunduh bukti...");
+
         try {
-            const response = await fetch(evidence.data);
-            const fileBlob = await response.blob();
-            const link = document.createElement("a");
-            const objectUrl = URL.createObjectURL(fileBlob);
-            link.href = objectUrl;
-            link.download = evidence.name || `bukti-${id}`;
-            link.click();
-            URL.revokeObjectURL(objectUrl);
+            const storageLocation = getPlanningStorageLocation(evidence.data);
+            let fileBlob;
+
+            if (storageLocation && supabaseClient) {
+                const { data, error } = await supabaseClient.storage
+                    .from(storageLocation.bucket)
+                    .download(storageLocation.path);
+
+                if (error) throw error;
+                fileBlob = data;
+            } else {
+                const response = await fetch(evidence.data);
+                if (!response.ok) {
+                    throw new Error(`Gagal mengambil bukti (${response.status}).`);
+                }
+                fileBlob = await response.blob();
+            }
+
+            if (!(fileBlob instanceof Blob) || fileBlob.size <= 0) {
+                throw new Error("File bukti kosong atau tidak dapat dibaca.");
+            }
+
+            triggerPlanningEvidenceDownload(fileBlob, evidence.name || `bukti-${id}`);
         } catch (error) {
-            window.open(evidence.data, "_blank", "noopener");
+            showPlanningToast("error", "Download gagal", error.message || "File bukti tidak dapat diunduh.");
+        } finally {
+            hidePlanningLoading();
         }
     }
 
@@ -1503,6 +1563,141 @@
 
     }
 
+    function initPlanningButtonFeedback() {
+        if (PlanningState.buttonFeedbackInitialized) return;
+        PlanningState.buttonFeedbackInitialized = true;
+
+        const style = document.createElement("style");
+        style.id = "planningButtonFeedbackStyle";
+        style.textContent = `
+            button.planning-button-loading {
+                position: relative;
+                pointer-events: none;
+                opacity: .82;
+            }
+
+            button.planning-button-loading::after {
+                content: "";
+                position: absolute;
+                top: 50%;
+                right: 9px;
+                width: 12px;
+                height: 12px;
+                margin-top: -7px;
+                border: 2px solid currentColor;
+                border-right-color: transparent;
+                border-radius: 50%;
+                animation: planningButtonSpin .65s linear infinite;
+            }
+
+            @keyframes planningButtonSpin {
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        document.addEventListener("click", function (event) {
+            const button = event.target.closest("button");
+
+            if (!button || button.disabled || button.dataset.skipLoading === "true") {
+                return;
+            }
+
+            // Skip loading untuk menu navigation dan action button
+            if (button.classList.contains("menu-item") || 
+                button.dataset.action || 
+                button.onclick || 
+                button.getAttribute("onclick")) {
+                return;
+            }
+
+            // Hanya tampilkan loading untuk CRUD button tertentu
+            if (button.classList.contains("planning-btn-crud") || 
+                button.id === "btnBuatPlanning" ||
+                button.id === "btnSimpanPreview") {
+                button.classList.add("planning-button-loading");
+                setTimeout(function () {
+                    button.classList.remove("planning-button-loading");
+                }, 550);
+            }
+        });
+    }
+
+    function getPlanningManPower(item) {
+        const employeeLists = [
+            item?.karyawan,
+            item?.karyawanList,
+            item?.karyawanData,
+            item?.daftarKaryawan,
+            item?.employees,
+            item?.karyawanIds
+        ];
+
+        const employees = employeeLists.find(function (value) {
+            return Array.isArray(value);
+        });
+
+        return employees ? employees.length : (item?.karyawanId != null ? 1 : 0);
+    }
+
+    function getPlanningCopyMessage(item) {
+        const dateParts = String(item?.tanggal || "").split("-");
+        let formattedDate = formatTanggalPlanning(item?.tanggal);
+
+        if (dateParts.length === 3) {
+            const date = new Date(
+                Number(dateParts[0]),
+                Number(dateParts[1]) - 1,
+                Number(dateParts[2])
+            );
+
+            if (!Number.isNaN(date.getTime())) {
+                formattedDate = date.toLocaleDateString("id-ID", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric"
+                }).replace(",", "");
+            }
+        }
+
+        return `Berikut jadwal lembur hari ${formattedDate} total ${getPlanningManPower(item)} man power`;
+    }
+
+    async function copyPlanningMessage(id) {
+        const item = findPlanningById(id);
+
+        if (!item) {
+            showPlanningToast("error", "Planning tidak ditemukan", "Pesan tidak dapat disalin.");
+            return;
+        }
+
+        const message = getPlanningCopyMessage(item);
+
+        try {
+            if (navigator.clipboard?.writeText && window.isSecureContext) {
+                await navigator.clipboard.writeText(message);
+            } else {
+                const textarea = document.createElement("textarea");
+                textarea.value = message;
+                textarea.style.position = "fixed";
+                textarea.style.opacity = "0";
+                document.body.appendChild(textarea);
+                textarea.select();
+                const copied = document.execCommand("copy");
+                textarea.remove();
+
+                if (!copied) {
+                    throw new Error("Browser tidak mengizinkan penyalinan.");
+                }
+            }
+
+            showPlanningToast("success", "Pesan disalin", message);
+        } catch (error) {
+            showPlanningToast("error", "Gagal menyalin", "Izin clipboard tidak tersedia.");
+        }
+    }
+
 
     /* =========================================================
     GENERATE ID
@@ -1990,6 +2185,16 @@
 
             <button
                 type="button"
+                class="planning-btn planning-btn-copy"
+                data-action="copy"
+                data-id="${escapePlanningHTML(id)}"
+                title="Salin pesan jadwal lembur"
+            >
+                Salin Pesan
+            </button>
+
+            <button
+                type="button"
                 class="planning-btn planning-btn-hapus"
                 data-action="hapus"
                 data-id="${escapePlanningHTML(id)}"
@@ -2110,6 +2315,10 @@
                     if (action === "cetak") {
                     cetakPlanningPNG(id);
                    }
+
+                    if (action === "copy") {
+                        copyPlanningMessage(id);
+                    }
 
                     if (action === "hapus") {
                         hapusPlanning(id);
@@ -2604,28 +2813,6 @@
                 </div>
 
                 <div class="planning-preview-field">
-                    <label>Durasi</label>
-                    <input
-                        id="previewDurasi"
-                        value="${escapePlanningHTML(
-                            item.durasi ||
-                            formatDurasiPlanning(
-                                item.durasiMenit
-                            )
-                        )}"
-                        readonly
-                    >
-                </div>
-
-                <div class="planning-preview-field">
-                    <label>Jenis Lembur</label>
-                    <select id="previewJenisLembur">
-                        <option value="harian" ${item.jenisLembur !== "tanggal_merah" ? "selected" : ""}>Harian</option>
-                        <option value="tanggal_merah" ${item.jenisLembur === "tanggal_merah" ? "selected" : ""}>Tanggal Merah</option>
-                    </select>
-                </div>
-
-                <div class="planning-preview-field">
                     <label>Jam Mulai</label>
                     <input
                         type="time"
@@ -2636,18 +2823,7 @@
                     >
                 </div>
 
-                <div class="planning-preview-field">
-                    <label>Jam Selesai</label>
-                    <input
-                        type="time"
-                        id="previewJamSelesai"
-                        value="${escapePlanningHTML(
-                            item.jamSelesai || ""
-                        )}"
-                    >
-                </div>
-
-                <div class="planning-preview-field">
+                <div class="planning-preview-field full">
                     <label>Keterangan</label>
                     <input
                         id="previewKeterangan"
@@ -4338,7 +4514,15 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
         const tanggal =
-            item.tanggal || "-";
+            item.tanggal ||
+            item.tanggalLembur ||
+            item.tanggal_lembur ||
+            item.date ||
+            item.dateOvertime ||
+            item.date_overtime ||
+            item.overtimeDate ||
+            item.overtime_date ||
+            "-";
 
 
         const tanggalTampil =
@@ -4350,56 +4534,65 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         const jamMulai =
             item.jamMulai ||
             item.jam_mulai ||
+            item.jamMulaiLembur ||
+            item.jam_mulai_lembur ||
+            item.startTime ||
+            item.start_time ||
+            item.waktuMulai ||
+            item.waktu_mulai ||
             "-";
 
 
         const jamSelesai =
             item.jamSelesai ||
             item.jam_selesai ||
-            "-";
-
+            item.jamSelesaiLembur ||
+            item.jam_selesai_lembur ||
+            item.endTime ||
+            item.end_time ||
+            item.waktuSelesai ||
+            item.waktu_selesai ||
+            (item.jamMulai ? "21:00" : "-");
 
         let durasi =
             item.durasi ||
             item.durasiLembur ||
+            item.durasi_lembur ||
+            item.durationMinutes ||
+            item.duration_minutes ||
+            item.lamanya ||
+            item.lama ||
             null;
 
-
-        if (
-            !durasi &&
-            item.durasiMenit !== undefined &&
-            item.durasiMenit !== null
-        ) {
-
-            if (
-                typeof formatDurasiPlanning === "function"
-            ) {
-
-                durasi =
-                    formatDurasiPlanning(
-                        item.durasiMenit
-                    );
-
-            } else {
-
-                durasi =
-                    item.durasiMenit;
-
-            }
-
+        if (!durasi && typeof item.durasiMenit !== "undefined" && item.durasiMenit !== null && item.durasiMenit !== "") {
+            durasi = typeof formatDurasiPlanning === "function" 
+                ? formatDurasiPlanning(item.durasiMenit)
+                : item.durasiMenit + " Menit";
         }
 
+        if (!durasi && typeof item.durationMinutes !== "undefined" && item.durationMinutes !== null && item.durationMinutes !== "") {
+            durasi = typeof formatDurasiPlanning === "function"
+                ? formatDurasiPlanning(item.durationMinutes)
+                : item.durationMinutes + " Menit";
+        }
 
-        durasi = durasi || "-";
-
+        durasi = durasi || "8 Jam";
 
         const jenisLemburValue =
             item.jenisLembur ||
             item.jenis_lembur ||
+            item.jenisLemburPlanning ||
+            item.jenis_lembur_planning ||
+            item.typeOfOvertime ||
+            item.type_of_overtime ||
+            item.tipeOvertime ||
+            item.tipe_overtime ||
             "harian";
 
         const jenisLemburTampil =
-            jenisLemburValue === "tanggal_merah"
+            (jenisLemburValue === "tanggal_merah" ||
+            jenisLemburValue === "red_date" ||
+            jenisLemburValue === "libur_nasional")
                 ? "Tanggal Merah"
                 : "Harian";
 
@@ -4746,6 +4939,21 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                         "-";
 
 
+                    const id =
+                        data.idKaryawan ||
+                        data.id_karyawan ||
+                        data.employeeId ||
+                        data.employee_id ||
+                        data.employeeID ||
+                        data.id ||
+                        data.ID ||
+                        data.nik ||
+                        data.NIK ||
+                        data.nip ||
+                        data.NIP ||
+                        "-";
+
+
                     const nik =
                         data.nik ||
                         data.NIK ||
@@ -4771,6 +4979,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
                     return {
                         nama: String(nama).trim(),
+                        id: String(id).trim(),
                         nik: String(nik).trim()
                     };
 
@@ -4881,7 +5090,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                     <tr>
 
                         <td style="
-                            width:55px;
+                            width:45px;
                             padding:${rowPadding}px 6px;
                             text-align:center;
                             background:#f5f5f5;
@@ -4899,7 +5108,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                         <td style="
-                            width:350px;
+                            width:280px;
                             padding:${rowPadding}px 14px;
                             text-align:left;
                             background:#ffffff;
@@ -4922,10 +5131,33 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                         <td style="
-                            width:255px;
+                            width:170px;
                             padding:${rowPadding}px 14px;
                             text-align:left;
                             background:#f5f5f5;
+                            color:#202020;
+                            border:1px solid #d7d7d7;
+                            font-family:Arial,Helvetica,sans-serif;
+                            font-size:${employeeFontSize}px;
+                            font-weight:400;
+                            vertical-align:middle;
+                            box-sizing:border-box;
+                            line-height:1.35;
+                            letter-spacing:.1px;
+                            white-space:normal;
+                            overflow-wrap:anywhere;
+                        ">
+                            ${escapeHTML(
+                                dataKaryawan.id
+                            )}
+                        </td>
+
+
+                        <td style="
+                            width:165px;
+                            padding:${rowPadding}px 14px;
+                            text-align:left;
+                            background:#ffffff;
                             color:#202020;
                             border:1px solid #d7d7d7;
                             font-family:Arial,Helvetica,sans-serif;
@@ -5434,6 +5666,22 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     ${escapeHTML(jenisLemburTampil)}
                                 </td>
 
+                                <td style="
+                                    width:105px;
+                                    height:44px;
+                                    background:transparent;
+                                    border:none;
+                                ">
+                                </td>
+
+                                <td style="
+                                    width:225px;
+                                    height:44px;
+                                    background:transparent;
+                                    border:none;
+                                ">
+                                </td>
+
                             </tr>
 
                         </table>
@@ -5506,15 +5754,19 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                             <colgroup>
 
                                 <col style="
-                                    width:55px;
+                                    width:45px;
                                 ">
 
                                 <col style="
-                                    width:350px;
+                                    width:280px;
                                 ">
 
                                 <col style="
-                                    width:255px;
+                                    width:170px;
+                                ">
+
+                                <col style="
+                                    width:165px;
                                 ">
 
                             </colgroup>
@@ -5525,7 +5777,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                 <tr>
 
                                     <th style="
-                                        width:55px;
+                                        width:45px;
                                         padding:${headerPadding}px 6px;
                                         background:#202020;
                                         color:rgb(247,244,15);
@@ -5541,7 +5793,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                     <th style="
-                                        width:350px;
+                                        width:280px;
                                         padding:${headerPadding}px 14px;
                                         background:#202020;
                                         color:rgb(247,244,15);
@@ -5557,7 +5809,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                     <th style="
-                                        width:255px;
+                                        width:170px;
                                         padding:${headerPadding}px 14px;
                                         background:#202020;
                                         color:rgb(247,244,15);
@@ -5568,7 +5820,23 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                         box-sizing:border-box;
                                         line-height:1.3;
                                     ">
-                                        NIK / ID
+                                        ID KARYAWAN
+                                    </th>
+
+
+                                    <th style="
+                                        width:165px;
+                                        padding:${headerPadding}px 14px;
+                                        background:#202020;
+                                        color:rgb(247,244,15);
+                                        border:1px solid #202020;
+                                        text-align:left;
+                                        font-size:${employeeFontSize}px;
+                                        font-weight:800;
+                                        box-sizing:border-box;
+                                        line-height:1.3;
+                                    ">
+                                        NIK
                                     </th>
 
                                 </tr>
@@ -6439,6 +6707,8 @@ initPlanningFilters();
 
                 initPlanningToast();
 
+                initPlanningButtonFeedback();
+
             }
         );
 
@@ -6449,6 +6719,8 @@ initPlanningFilters();
         initPlanningGlobalEvents();
 
         initPlanningToast();
+
+        initPlanningButtonFeedback();
 
     }
 function initPlanningFilters() {
