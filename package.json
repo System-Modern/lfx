@@ -1,0 +1,9 @@
+{
+    "name": "planbur-app",
+    "private": true,
+    "version": "1.0.0",
+    "description": "Planbur app with a server-side Supabase proxy",
+    "scripts": {
+        "start": "node server.js"
+    }
+}

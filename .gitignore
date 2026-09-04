@@ -1,0 +1,10 @@
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Generated runtime configuration
+.env.generated.js
+
+# Local developer-only override, keep actual values off GitHub
+config.local.js

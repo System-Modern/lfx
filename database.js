@@ -10,11 +10,20 @@
    KONFIGURASI SUPABASE
 ===================================================== */
 
+const runtimeEnv =
+    window.PlanburEnv ||
+    window.__PLANBUR_ENV__ ||
+    {};
+
 const SUPABASE_URL =
-    "https://msthucqijrjmmntsdscm.supabase.co";
+    String(
+        runtimeEnv.SUPABASE_URL || ""
+    ).replace(/\/$/, "");
 
 const SUPABASE_ANON_KEY =
-    "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+    String(
+        runtimeEnv.SUPABASE_ANON_KEY || ""
+    ).trim();
 
 
 /* =====================================================
@@ -25,7 +34,13 @@ let supabaseClient = null;
 
 try {
 
-    if (
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+
+        console.error(
+            "[DB] Konfigurasi Supabase belum tersedia. Isi window.__PLANBUR_ENV__ sebelum memuat database.js."
+        );
+
+    } else if (
         typeof window.supabase !== "undefined" &&
         typeof window.supabase.createClient === "function"
     ) {

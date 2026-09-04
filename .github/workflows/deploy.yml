@@ -1,0 +1,40 @@
+name: Deploy static app
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Generate config.local.js from GitHub secrets
+        run: |
+          cat > config.local.js <<EOF
+          window.__PLANBUR_ENV__ = {
+              SUPABASE_URL: "${{ secrets.SUPABASE_URL }}",
+              SUPABASE_ANON_KEY: "${{ secrets.SUPABASE_ANON_KEY }}"
+          };
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy-pages:
+    needs: deploy
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

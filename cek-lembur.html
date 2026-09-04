@@ -14,6 +14,8 @@
     ========================================================== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+    <script src="env.js?v=20260904-1"></script>
+
     <!-- =========================================================
          CHART.JS
     ========================================================== -->
@@ -3929,15 +3931,28 @@
            SUPABASE CONFIG
         ========================================================== */
 
+        const runtimeEnv =
+            window.PlanburEnv ||
+            window.__PLANBUR_ENV__ ||
+            {};
+
         const SUPABASE_URL =
-            "https://msthucqijrjmmntsdscm.supabase.co";
+            String(
+                runtimeEnv.SUPABASE_URL || ""
+            ).replace(/\/$/, "");
 
 
         const SUPABASE_ANON_KEY =
-            "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+            String(
+                runtimeEnv.SUPABASE_ANON_KEY || ""
+            ).trim();
 
 
         let supabaseClient = null;
+
+        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+            console.error("[CEK-LEMBUR] Konfigurasi Supabase belum tersedia. Isi window.__PLANBUR_ENV__ terlebih dahulu.");
+        }
 
 
         /* =========================================================
