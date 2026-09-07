@@ -272,7 +272,7 @@
 
             triggerPlanningEvidenceDownload(fileBlob, evidence.name || `bukti-${id}`);
         } catch (error) {
-            showPlanningToast("error", "Download gagal", error.message || "File bukti tidak dapat diunduh.");
+            showPlanningToast("error", "Unduhan gagal", error.message || "Berkas bukti tidak dapat diunduh.");
         } finally {
             hidePlanningLoading();
         }
@@ -518,7 +518,10 @@
 
         loading.innerHTML = `
             <div class="planning-loading-box">
-                <div class="planning-loading-spinner"></div>
+                <div class="planning-loading-brand">
+                    <img src="Logo.png" alt="">
+                    <span class="planning-loading-spinner"></span>
+                </div>
                 <div
                     class="planning-loading-text"
                     id="planningLoadingText"
@@ -531,8 +534,8 @@
         Object.assign(loading.style, {
             position: "fixed",
             inset: "0",
-            background: "rgba(0,0,0,.35)",
-            backdropFilter: "blur(3px)",
+            background: "rgba(17,17,17,.28)",
+            backdropFilter: "blur(7px)",
             display: "none",
             alignItems: "center",
             justifyContent: "center",
@@ -545,23 +548,39 @@
 
         style.textContent = `
             .planning-loading-box {
-                min-width: 220px;
-                padding: 25px 30px;
-                border-radius: 15px;
-                background: #fff;
-                box-shadow: 0 15px 50px rgba(0,0,0,.2);
+                min-width: 240px;
+                padding: 28px 32px;
+                border: 1px solid rgba(255,255,255,.8);
+                border-radius: 8px;
+                background: rgba(255,255,255,.96);
+                box-shadow: 0 24px 70px rgba(0,0,0,.18);
                 text-align: center;
-                font-family: Arial, sans-serif;
+                font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            }
+
+            .planning-loading-brand {
+                position: relative;
+                width: 68px;
+                height: 68px;
+                margin: 0 auto 16px;
+                display: grid;
+                place-items: center;
+            }
+
+            .planning-loading-brand img {
+                width: 42px;
+                height: 42px;
+                object-fit: contain;
             }
 
             .planning-loading-spinner {
-                width: 38px;
-                height: 38px;
-                margin: 0 auto 14px;
-                border: 4px solid #eee;
-                border-top-color: #d71920;
+                position: absolute;
+                inset: 0;
+                border: 3px solid #f1f1ed;
+                border-top-color: #f7f40f;
+                border-right-color: #d71920;
                 border-radius: 50%;
-                animation: planningSpin .8s linear infinite;
+                animation: planningSpin .9s linear infinite;
             }
 
             .planning-loading-text {
@@ -1661,7 +1680,34 @@
             }
         }
 
-        return `Berikut jadwal lembur hari ${formattedDate} total ${getPlanningManPower(item)} man power`;
+        const jamMulai = item?.jamMulai || "-";
+        const jamSelesai = item?.jamSelesai || "-";
+        const daftarKaryawan = Array.isArray(item?.karyawan)
+            ? item.karyawan
+                .map(function (karyawan) {
+                    return karyawan?.nama || karyawan?.namaKaryawan || "";
+                })
+                .filter(Boolean)
+            : [];
+        const nomorEmoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
+        const daftarNama = daftarKaryawan.length
+            ? daftarKaryawan.map(function (nama, index) {
+                const nomor = nomorEmoji[index] || `${index + 1}.`;
+                return `${nomor} ${nama}`;
+            }).join("\n")
+            : "- Belum ada karyawan";
+
+        const garisPemisah = "------------------------------";
+
+        return `${garisPemisah}\n` +
+            `📅 Hari / Tanggal: ${formattedDate}\n` +
+            `⏰ Jam Lembur: ${jamMulai} - ${jamSelesai}\n` +
+            `${garisPemisah}\n\n` +
+            `📋 DAFTAR LEMBUR TIM 🕒\n` +
+            `${garisPemisah}\n` +
+            `${daftarNama}\n` +
+            `${garisPemisah}\n\n` +
+            `*Note : Jika berhalangan lembur, wajib cari pengganti dan melakukan konfirmasi`;
     }
 
     async function copyPlanningMessage(id) {
@@ -1923,10 +1969,10 @@
                 previewSaved ? "success" : "warning",
                 previewSaved
                     ? "Planning berhasil dibuat"
-                    : "Planning tersimpan, preview gagal dibuat",
+                    : "Rencana tersimpan, pratinjau gagal dibuat",
                 previewSaved
-                    ? `${selected.length} karyawan berhasil ditambahkan dan preview tersimpan.`
-                    : "Data planning tersimpan, tetapi preview_url belum berhasil diperbarui."
+                    ? `${selected.length} karyawan berhasil ditambahkan dan pratinjau tersimpan.`
+                    : "Data rencana tersimpan, tetapi gambar pratinjau belum berhasil diperbarui."
             );
 
         } catch (error) {
@@ -2161,7 +2207,7 @@
                 data-action="preview"
                 data-id="${escapePlanningHTML(id)}"
             >
-                👁 Preview
+                Pratinjau
             </button>
 
             <button
@@ -2170,7 +2216,7 @@
                 data-action="edit"
                 data-id="${escapePlanningHTML(id)}"
             >
-                ✏ Edit
+                Ubah
             </button>
 
             <button
@@ -2178,9 +2224,9 @@
                 class="planning-btn planning-btn-download"
                 data-action="cetak"
                 data-id="${escapePlanningHTML(id)}"
-                title="Download Planning"
+                title="Unduh rencana lembur"
             >
-                ↓ Download
+                Unduh
             </button>
 
             <button
@@ -2231,9 +2277,9 @@
                 class="planning-file-btn planning-file-download"
                 data-action="download"
                 data-id="${escapePlanningHTML(id)}"
-                title="Download File"
+                title="Unduh berkas"
             >
-                ↓ Download
+                Unduh
             </button>
 <button
     type="button"
@@ -2686,8 +2732,8 @@
             <div class="planning-preview-box">
                 <div class="planning-preview-header">
                     <div>
-                        <div style="font-size:11px;">
-                            PREVIEW PLANNING
+                        <div class="planning-preview-eyebrow" style="font-size:11px;">
+                            PRATINJAU RENCANA
                         </div>
                         <h2>Detail Lembur</h2>
                     </div>
@@ -2792,7 +2838,7 @@
             <div class="planning-preview-form">
 
                 <div class="planning-preview-field">
-                    <label>ID Planning</label>
+                    <label>ID Rencana</label>
                     <input
                         value="${escapePlanningHTML(
                             getPlanningId(item)

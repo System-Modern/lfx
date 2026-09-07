@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <title>Cek Planning Lembur Karyawan - LINFOX</title>
 
  
@@ -17,11 +20,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-
-    <!-- FONT GOOGLE -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
         /* =========================================================
@@ -70,13 +68,27 @@
 
         body {
             min-height: 100vh;
-            font-family: "Plus Jakarta Sans", sans-serif;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
+            font-size: 15px;
             color: var(--text-main);
             background-color: var(--bg-body);
-            background-image: 
+            background-image:
+                linear-gradient(rgba(248, 250, 252, .92), rgba(248, 250, 252, .92)),
+                url("Logo.png"),
                 radial-gradient(at 0% 0%, rgba(215, 25, 32, 0.03) 0px, transparent 50%),
-                radial-gradient(at 100% 0%, rgba(37, 99, 235, 0.03) 0px, transparent 50%);
+                radial-gradient(at 100% 0%, rgba(247, 244, 15, 0.05) 0px, transparent 50%);
+            background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+            background-position: center, center 58%, left top, right top;
+            background-size: auto, min(58vw, 720px) auto, auto, auto;
+            background-attachment: fixed, fixed, fixed, fixed;
             line-height: 1.5;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                background-position: center, center 62%, left top, right top;
+                background-size: auto, min(86vw, 460px) auto, auto, auto;
+            }
         }
 
         button, input {
@@ -114,10 +126,22 @@
         }
 
         .brand-logo {
-            width: 42px;
-            height: 42px;
+            width: 56px;
+            height: 56px;
             object-fit: contain;
             border-radius: var(--radius-sm);
+        }
+
+        .hero-logo {
+            position: absolute;
+            right: 34px;
+            top: 50%;
+            width: 150px;
+            max-height: 92px;
+            object-fit: contain;
+            opacity: .12;
+            transform: translateY(-50%);
+            pointer-events: none;
         }
 
         .brand-title {
@@ -483,6 +507,12 @@
         #resultSection {
             display: none;
             animation: fadeIn 0.4s ease;
+        }
+
+        #resultSection.preparing {
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
         }
 
         @keyframes fadeIn {
@@ -906,14 +936,29 @@
         }
 
         .table-wrapper {
+            position: relative;
+            isolation: isolate;
             overflow-x: auto;
+            background: rgba(255, 255, 255, .75);
+        }
+
+        .table-wrapper::before {
+            content: "";
+            position: absolute;
+            inset: 15% 25%;
+            z-index: 0;
+            background: url("Logo.png") center / contain no-repeat;
+            opacity: .055;
+            pointer-events: none;
         }
 
         table {
+            position: relative;
+            z-index: 1;
             width: 100%;
             min-width: 1050px;
             border-collapse: collapse;
-            font-size: 12px;
+            font-size: 13px;
         }
 
         th {
@@ -921,7 +966,7 @@
             background: var(--bg-body);
             color: var(--text-muted);
             border-bottom: 1px solid var(--border-color);
-            font-size: 10px;
+            font-size: 12px;
             font-weight: 800;
             letter-spacing: 0.6px;
             text-transform: uppercase;
@@ -937,8 +982,16 @@
             font-weight: 500;
         }
 
+        tbody tr:nth-child(odd) td {
+            background: rgba(255, 255, 255, .93);
+        }
+
+        tbody tr:nth-child(even) td {
+            background: rgba(255, 255, 252, .91);
+        }
+
         tbody tr:hover td {
-            background: #f8fafc;
+            background: rgba(247, 244, 15, .055);
         }
 
         tbody tr:last-child td {
@@ -991,6 +1044,12 @@
             transition: all 0.2s;
         }
 
+        .file-action-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
         .btn-photo {
             background: var(--green-light);
             border-color: rgba(16, 185, 129, 0.3);
@@ -1017,6 +1076,13 @@
             color: #94a3b8;
             font-size: 11px;
             font-style: italic;
+        }
+
+        .photo-body iframe {
+            width: 100%;
+            min-height: 66vh;
+            border: 0;
+            background: white;
         }
 
         .empty {
@@ -1201,6 +1267,79 @@
             to { transform: rotate(360deg); }
         }
 
+        .search-loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, .34);
+            backdrop-filter: blur(8px);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity .22s ease, visibility .22s ease;
+        }
+
+        .search-loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .search-loading-card {
+            width: min(290px, 100%);
+            padding: 30px 28px 26px;
+            border: 1px solid rgba(255, 255, 255, .82);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .97);
+            box-shadow: 0 24px 70px rgba(15, 23, 42, .2);
+            text-align: center;
+            transform: translateY(8px) scale(.98);
+            transition: transform .22s ease;
+        }
+
+        .search-loading-overlay.active .search-loading-card {
+            transform: translateY(0) scale(1);
+        }
+
+        .search-loading-logo {
+            position: relative;
+            width: 86px;
+            height: 86px;
+            margin: 0 auto 17px;
+            display: grid;
+            place-items: center;
+        }
+
+        .search-loading-logo img {
+            width: 58px;
+            height: 58px;
+            object-fit: contain;
+        }
+
+        .search-loading-ring {
+            position: absolute;
+            inset: 0;
+            border: 3px solid #eef0ea;
+            border-top-color: #f7f40f;
+            border-right-color: var(--red-primary);
+            border-radius: 50%;
+            animation: spin .9s linear infinite;
+        }
+
+        .search-loading-title {
+            color: var(--navy);
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .search-loading-text {
+            margin-top: 6px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
         /* =========================================================
            RESPONSIVE DESIGN
         ========================================================== */
@@ -1216,11 +1355,23 @@
             .profile-card { flex-direction: column; align-items: flex-start; }
             .header-inner, main { padding: 0 16px; }
             .hero { padding: 24px; }
+            .hero-logo { width: 100px; right: 18px; opacity: .08; }
         }
     </style>
 </head>
 
 <body>
+
+    <div id="searchLoadingOverlay" class="search-loading-overlay" role="status" aria-live="polite" aria-hidden="true">
+        <div class="search-loading-card">
+            <div class="search-loading-logo" aria-hidden="true">
+                <img src="logo-daysheet.png" alt="Logo Daysheet">
+                <span class="search-loading-ring"></span>
+            </div>
+            <div class="search-loading-title">Mencari data lembur</div>
+            <div class="search-loading-text">Mohon tunggu, data sedang disiapkan...</div>
+        </div>
+    </div>
 
     <!-- HEADER -->
     <header>
@@ -1229,7 +1380,7 @@
                 <img src="Logo.png" alt="LINFOX" class="brand-logo" onerror="this.style.display='none'">
                 <div>
                     <div class="brand-title">PT LINFOX LOGISTICS INDONESIA</div>
-                    <div class="brand-subtitle">Employee Overtime Planning Portal</div>
+                    <div class="brand-subtitle">Portal Rencana Lembur Karyawan</div>
                 </div>
             </div>
             <div class="header-status">
@@ -1249,6 +1400,7 @@
                 <h1>Cek Jadwal & Riwayat Planning Lembur</h1>
                 <p>Akses informasi planning lembur karyawan secara akurat, transparan, dan terintegrasi langsung dengan database perusahaan melalui sistem Supabase.</p>
             </div>
+            <img src="Logo.png" alt="" class="hero-logo" aria-hidden="true">
         </section>
 
         <!-- SEARCH CARD -->
@@ -1336,7 +1488,7 @@
                 <div class="stat-card">
                     <div class="stat-icon stat-red">📋</div>
                     <div>
-                        <div class="stat-label">Total Planning</div>
+                        <div class="stat-label">Total Rencana</div>
                         <div id="statTotalPlanning" class="stat-value">0 Plan</div>
                     </div>
                 </div>
@@ -1368,7 +1520,7 @@
                 <div class="analytics-title-left">
                     <span class="analytics-line"></span>
                     <div>
-                        <h3>Analytics Planning Lembur</h3>
+                        <h3>Analisis Rencana Lembur</h3>
                         <p>Visualisasi grafik aktivitas lembur berdasarkan rentang tanggal.</p>
                     </div>
                 </div>
@@ -1383,8 +1535,8 @@
                         <div class="chart-heading">
                             <div class="chart-icon">📊</div>
                             <div>
-                                <h4>Planning per Tanggal</h4>
-                                <p>Frekuensi planning harian</p>
+                                <h4>Rencana per Tanggal</h4>
+                                <p>Frekuensi rencana harian</p>
                             </div>
                         </div>
                         <div class="chart-mini-badge">PLANNING</div>
@@ -1419,7 +1571,7 @@
                         <div class="chart-heading">
                             <div class="chart-icon">📈</div>
                             <div>
-                                <h4>Trend Jam Lembur</h4>
+                                <h4>Tren Jam Lembur</h4>
                                 <p>Pergerakan total durasi lembur berdasarkan timeline</p>
                             </div>
                         </div>
@@ -1462,7 +1614,7 @@
                 <div class="table-header">
                     <div class="table-title">
                         <span class="table-title-line"></span>
-                        <h3>Riwayat Planning Lembur</h3>
+                        <h3>Riwayat Rencana Lembur</h3>
                         <span id="periodBadge" class="period-badge">Semua Periode</span>
                     </div>
                     <div class="table-header-actions">
@@ -1479,13 +1631,13 @@
                             <tr>
                                 <th>No</th>
                                 <th>Tanggal</th>
-                                <th>ID Planning</th>
+                                <th>ID Rencana</th>
                                 <th>Jam Kerja</th>
                                 <th>Durasi</th>
                                 <th>Jenis</th>
                                 <th>Keterangan</th>
                                 <th>Status</th>
-                                <th>Bukti Planning</th>
+                                <th>Bukti Rencana</th>
                                 <th>TTD</th>
                             </tr>
                         </thead>
@@ -1513,7 +1665,7 @@
             </div>
             <div class="photo-footer">
                 <button type="button" class="btn btn-reset" onclick="closePhotoModal()">Tutup</button>
-                <a id="photoModalDownload" href="#" target="_blank" rel="noopener noreferrer" class="download-photo">↓ Download File</a>
+                <button id="photoModalDownload" type="button" class="download-photo">Unduh Berkas</button>
             </div>
         </div>
     </div>
@@ -1559,6 +1711,7 @@
         const photoModalTitle = document.getElementById("photoModalTitle");
         const photoModalUrl = document.getElementById("photoModalUrl");
         const photoModalDownload = document.getElementById("photoModalDownload");
+        const searchLoadingOverlay = document.getElementById("searchLoadingOverlay");
 
         let currentHistoryPrintData = null;
 
@@ -1912,7 +2065,14 @@
             btnSubmit.disabled = true;
             btnSpinner.style.display = "inline-block";
             btnText.textContent = "Mencari data...";
-            resultSection.style.display = "none";
+            const loadingStartedAt = Date.now();
+            const minimumLoadingTime = 1400;
+            let resultReady = false;
+
+            resultSection.classList.add("preparing");
+            resultSection.style.display = "block";
+            searchLoadingOverlay.classList.add("active");
+            searchLoadingOverlay.setAttribute("aria-hidden", "false");
 
             try {
                 const { data: karyawanList, error: karyawanError } = await supabaseClient
@@ -1947,21 +2107,48 @@
                         .in("id", planningIds)
                         .gte("tanggal", tanggalDari)
                         .lte("tanggal", tanggalSampai)
-                        .order("tanggal", { ascending: false });
+                        .order("tanggal", { ascending: true });
 
                     if (planningError) throw planningError;
                     plannings = rawPlanning || [];
                 }
 
                 renderEmployeeResult(employee, plannings, tanggalDari, tanggalSampai);
+                resultReady = true;
 
             } catch (error) {
                 console.error("Search Error:", error);
                 showAlert("error", "Terjadi kesalahan: " + (error.message || "Gagal mengambil data dari server."));
             } finally {
+                const remainingLoadingTime = Math.max(
+                    0,
+                    minimumLoadingTime - (Date.now() - loadingStartedAt)
+                );
+
+                if (remainingLoadingTime > 0) {
+                    await new Promise(function (resolve) {
+                        setTimeout(resolve, remainingLoadingTime);
+                    });
+                }
+
+                if (resultReady) {
+                    await new Promise(function (resolve) {
+                        requestAnimationFrame(function () {
+                            requestAnimationFrame(resolve);
+                        });
+                    });
+                    resultSection.classList.remove("preparing");
+                    resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
+                } else {
+                    resultSection.classList.remove("preparing");
+                    resultSection.style.display = "none";
+                }
+
                 btnSubmit.disabled = false;
                 btnSpinner.style.display = "none";
                 btnText.textContent = "🔍 Cari Data Lembur";
+                searchLoadingOverlay.classList.remove("active");
+                searchLoadingOverlay.setAttribute("aria-hidden", "true");
             }
         });
 
@@ -2031,6 +2218,19 @@
                         : `<span class="tag">Harian</span>`;
                     const keterangan = escapeHTML(planning.keterangan || "-");
                     const statusPlanning = planning.status || "Planning";
+                    const buktiRencanaUrl = planning.preview_url || planning.previewUrl || "";
+                    const buktiTtdUrl = planning.bukti_url || planning.buktiUrl || "";
+                    const buktiTtdNama = planning.bukti_nama || planning.buktiNama || "Bukti-TTD";
+                    const buktiRencana = renderFileActions(
+                        buktiRencanaUrl,
+                        `Bukti Rencana ${kode}`,
+                        `Bukti-Rencana-${kode}.png`
+                    );
+                    const buktiTtd = renderFileActions(
+                        buktiTtdUrl,
+                        `TTD / Bukti ${kode}`,
+                        buktiTtdNama
+                    );
                     
                     return `
                         <tr>
@@ -2042,28 +2242,245 @@
                             <td>${jenis}</td>
                             <td>${keterangan}</td>
                             <td><span class="tag">${escapeHTML(statusPlanning)}</span></td>
-                            <td><span class="no-photo">-</span></td>
-                            <td><span class="no-photo">-</span></td>
+                            <td>${buktiRencana}</td>
+                            <td>${buktiTtd}</td>
                         </tr>
                     `;
                 }).join("");
             }
 
-            resultSection.style.display = "block";
-            resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
         function closePhotoModal() {
             if (photoModal) photoModal.classList.remove("active");
         }
 
-        function cetakRiwayatLemburPDF() {
+        function openPlanningFileFromButton(button) {
+            openPlanningFile(
+                button.dataset.url,
+                button.dataset.title,
+                button.dataset.filename
+            );
+        }
+
+        function openPlanningFile(url, title, fileName) {
+            const safeUrl = String(url || "").trim();
+
+            if (!safeUrl) {
+                alert("Berkas tidak tersedia.");
+                return;
+            }
+
+            const extension = safeUrl.split("?")[0].split(".").pop().toLowerCase();
+            const imageExtensions = ["png", "jpg", "jpeg", "webp", "gif", "bmp"];
+
+            photoModalTitle.textContent = title || "Bukti Rencana";
+            photoModalUrl.textContent = fileName || safeUrl.split("/").pop() || "Berkas";
+            photoModalDownload.dataset.url = safeUrl;
+            photoModalDownload.dataset.filename = fileName || "bukti-rencana";
+            photoModalDownload.textContent = "Unduh Berkas";
+
+            if (imageExtensions.includes(extension)) {
+                photoBody.innerHTML = `<img src="${escapeHTML(safeUrl)}" alt="${escapeHTML(title || "Bukti rencana")}" loading="lazy">`;
+            } else {
+                photoBody.innerHTML = `<iframe src="${escapeHTML(safeUrl)}" title="${escapeHTML(title || "Bukti rencana")}"></iframe>`;
+            }
+
+            photoModal.classList.add("active");
+        }
+
+        async function downloadPlanningFileFromButton(button) {
+            const url = String(button.dataset.url || "").trim();
+            const fileName = button.dataset.filename || "bukti-rencana";
+
+            if (!url || button.disabled) {
+                return;
+            }
+
+            const originalText = button.textContent;
+            button.disabled = true;
+            button.textContent = "Mengunduh...";
+
+            try {
+                let blob = null;
+                const storageMarker = "/storage/v1/object/public/planning-bukti/";
+                const markerIndex = url.indexOf(storageMarker);
+
+                if (markerIndex !== -1 && supabaseClient) {
+                    const storagePath = decodeURIComponent(
+                        url.slice(markerIndex + storageMarker.length).split("?")[0]
+                    );
+                    const result = await supabaseClient.storage
+                        .from("planning-bukti")
+                        .download(storagePath);
+
+                    if (result.error) {
+                        throw result.error;
+                    }
+                    blob = result.data;
+                } else {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`Berkas gagal diambil (${response.status}).`);
+                    }
+                    blob = await response.blob();
+                }
+
+                if (!(blob instanceof Blob) || blob.size === 0) {
+                    throw new Error("Berkas kosong atau tidak dapat dibaca.");
+                }
+
+                const objectUrl = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = objectUrl;
+                link.download = fileName;
+                link.style.display = "none";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(function () {
+                    URL.revokeObjectURL(objectUrl);
+                }, 1000);
+            } catch (error) {
+                console.error("Unduhan gagal:", error);
+                alert(error.message || "Berkas gagal diunduh.");
+            } finally {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
+        }
+
+        function renderFileActions(url, title, fileName) {
+            const safeUrl = String(url || "").trim();
+
+            if (!safeUrl) {
+                return `<span class="no-photo">-</span>`;
+            }
+
+            return `
+                <div class="file-action-group">
+                    <button
+                        type="button"
+                        class="btn-photo"
+                        data-url="${escapeHTML(safeUrl)}"
+                        data-title="${escapeHTML(title)}"
+                        data-filename="${escapeHTML(fileName || "bukti-rencana")}"
+                        onclick="openPlanningFileFromButton(this)"
+                    >Lihat</button>
+                    <button
+                        type="button"
+                        class="btn-download"
+                        data-url="${escapeHTML(safeUrl)}"
+                        data-filename="${escapeHTML(fileName || "bukti-rencana")}"
+                        onclick="downloadPlanningFileFromButton(this)"
+                    >Unduh</button>
+                </div>
+            `;
+        }
+
+        photoModalDownload.addEventListener("click", function () {
+            downloadPlanningFileFromButton(photoModalDownload);
+        });
+
+        async function cetakRiwayatLemburPDF() {
             if (!currentHistoryPrintData) {
                 alert("Tidak ada data untuk dicetak.");
                 return;
             }
-            // Fungsi cetak PDF bawaan dari window jspdf jika aktif
-            alert("Memproses dokumen PDF laporan lembur...");
+
+            const button = document.getElementById("btnCetakRiwayat");
+            const originalText = button?.innerHTML || "Cetak PDF";
+
+            try {
+                if (!window.jspdf?.jsPDF) {
+                    throw new Error("Pustaka pembuat PDF belum berhasil dimuat.");
+                }
+
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = "Menyiapkan PDF...";
+                }
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+                const data = currentHistoryPrintData;
+                const employee = data.employee;
+                const pageWidth = doc.internal.pageSize.getWidth();
+
+                doc.setFillColor(247, 244, 15);
+                doc.rect(0, 0, pageWidth * .72, 4, "F");
+                doc.setFillColor(215, 25, 32);
+                doc.rect(pageWidth * .72, 0, pageWidth * .28, 4, "F");
+
+                const logo = document.querySelector(".brand-logo");
+                if (logo?.complete && logo.naturalWidth) {
+                    try {
+                        doc.addImage(logo, "PNG", 14, 10, 22, 22);
+                    } catch (logoError) {
+                        console.warn("Logo tidak dapat dimasukkan ke PDF:", logoError);
+                    }
+                }
+
+                doc.setTextColor(15, 23, 42);
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(17);
+                doc.text("PT LINFOX LOGISTICS INDONESIA", 42, 17);
+                doc.setFontSize(11);
+                doc.text("Laporan Riwayat Lembur Karyawan", 42, 24);
+
+                doc.setDrawColor(226, 232, 240);
+                doc.line(14, 37, pageWidth - 14, 37);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(9);
+                doc.text(`Nama: ${employee.nama}`, 14, 45);
+                doc.text(`NIK: ${employee.nik}`, 14, 51);
+                doc.text(`Status: ${employee.status}`, 82, 45);
+                doc.text(`Tanggal lahir: ${employee.tanggalLahir}`, 82, 51);
+                doc.text(`Periode: ${data.periodText}`, 154, 45);
+                doc.text(`Total: ${data.totalPlanning} rencana / ${data.totalJam.toFixed(1).replace(".0", "")} jam`, 154, 51);
+
+                const rows = data.plannings.map(function (planning, index) {
+                    return [
+                        index + 1,
+                        formatTanggalIndo(planning.tanggal),
+                        planning.kode_planning || `PLN-${planning.id}`,
+                        `${planning.jam_mulai || "-"} - ${planning.jam_selesai || "-"}`,
+                        planning.durasi || formatDurasi(getDurasiMenit(planning)),
+                        planning.jenis_lembur === "tanggal_merah" ? "Tanggal Merah" : "Harian",
+                        planning.keterangan || "-",
+                        planning.status || "Rencana"
+                    ];
+                });
+
+                doc.autoTable({
+                    startY: 59,
+                    head: [["No", "Tanggal", "ID Rencana", "Jam", "Durasi", "Jenis", "Keterangan", "Status"]],
+                    body: rows,
+                    theme: "grid",
+                    styles: { font: "helvetica", fontSize: 8, cellPadding: 3, textColor: [51, 65, 85] },
+                    headStyles: { fillColor: [15, 23, 42], textColor: [247, 244, 15], fontStyle: "bold" },
+                    alternateRowStyles: { fillColor: [253, 253, 251] },
+                    margin: { left: 14, right: 14 },
+                    didDrawPage: function () {
+                        const pageHeight = doc.internal.pageSize.getHeight();
+                        doc.setFontSize(7);
+                        doc.setTextColor(100, 116, 139);
+                        doc.text(`Dicetak ${new Date().toLocaleString("id-ID")}`, 14, pageHeight - 7);
+                        doc.text(`Halaman ${doc.internal.getNumberOfPages()}`, pageWidth - 14, pageHeight - 7, { align: "right" });
+                    }
+                });
+
+                const safeName = String(employee.nama || "karyawan").replace(/[^a-zA-Z0-9_-]+/g, "-");
+                doc.save(`Riwayat-Lembur-${safeName}-${data.tanggalDari}-${data.tanggalSampai}.pdf`);
+            } catch (error) {
+                console.error("Gagal membuat PDF:", error);
+                alert(error.message || "PDF gagal dibuat. Silakan coba kembali.");
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                }
+            }
         }
     </script>
 </body>

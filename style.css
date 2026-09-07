@@ -7341,3 +7341,209 @@ textarea:disabled {
         transition-duration: .01ms !important;
     }
 }
+
+/* Penyegaran tampilan LINFOX */
+body {
+    position: relative;
+    background-color: #f7f8f5;
+    background-image:
+        linear-gradient(rgba(247, 248, 245, .93), rgba(247, 248, 245, .93)),
+        url("Logo.png");
+    background-repeat: no-repeat;
+    background-position: calc(50% + 129px) 52%;
+    background-size: auto, min(48vw, 620px);
+    background-attachment: fixed;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto 258px;
+    height: 5px;
+    z-index: 90;
+    background: linear-gradient(90deg, var(--linfox-yellow) 0 72%, #d71920 72% 100%);
+    pointer-events: none;
+}
+
+.main {
+    position: relative;
+    z-index: 1;
+}
+
+.topbar {
+    align-items: center;
+    padding: 5px 0 18px;
+    border-bottom: 1px solid rgba(213, 216, 210, .78);
+}
+
+.date-now,
+.card,
+.dashboard-filter,
+.stat-card,
+.summary-card {
+    backdrop-filter: blur(10px);
+}
+
+.card,
+.dashboard-filter,
+.stat-card,
+.summary-card {
+    background: rgba(255, 255, 255, .94);
+    border-color: rgba(215, 218, 212, .88);
+    box-shadow: 0 12px 34px rgba(17, 17, 17, .055);
+}
+
+.card::after,
+.dashboard-filter::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(255, 255, 255, .72);
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.dashboard-filter {
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar::after {
+    content: "LINFOX";
+    position: absolute;
+    left: 20px;
+    bottom: 22px;
+    color: rgba(255, 255, 255, .05);
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    pointer-events: none;
+}
+
+@media (max-width: 900px) {
+    body {
+        background-position: center 60%;
+        background-size: auto, min(82vw, 480px);
+    }
+
+    body::before {
+        left: 0;
+    }
+}
+
+/* Tipografi dan tabel */
+html,
+body,
+button,
+input,
+textarea,
+select {
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+body {
+    font-size: 15px;
+}
+
+.page-title h1 {
+    font-size: 32px;
+}
+
+.page-title p,
+.card-header p,
+.date-now,
+.stat-label,
+.summary-label,
+.form-group label {
+    font-size: 13px;
+}
+
+.card-header h2 {
+    font-size: 18px;
+}
+
+.menu-item {
+    font-size: 14px;
+}
+
+.table-wrapper {
+    position: relative;
+    isolation: isolate;
+    background: rgba(255, 255, 255, .72);
+}
+
+.table-wrapper::before {
+    content: "";
+    position: absolute;
+    inset: 12% 20%;
+    z-index: 0;
+    background: url("Logo.png") center / contain no-repeat;
+    opacity: .055;
+    pointer-events: none;
+}
+
+.table-wrapper table {
+    position: relative;
+    z-index: 1;
+    background: transparent;
+}
+
+.table-wrapper th {
+    font-size: 13px;
+}
+
+.table-wrapper td {
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.table-wrapper tbody tr:nth-child(odd) td {
+    background: rgba(255, 255, 255, .93);
+}
+
+.table-wrapper tbody tr:nth-child(even) td {
+    background: rgba(255, 255, 252, .91);
+}
+
+.table-wrapper tbody tr:hover td {
+    background: rgba(247, 244, 15, .055);
+}
+
+button svg.lucide {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    stroke-width: 2;
+}
+
+button:not(.menu-item) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+@media (max-width: 600px) {
+    body {
+        font-size: 14px;
+    }
+
+    .page-title h1 {
+        font-size: 26px;
+    }
+
+    .table-wrapper th,
+    .table-wrapper td {
+        font-size: 12px;
+    }
+
+    .table-wrapper::before {
+        inset: 18% 8%;
+    }
+}
+
+@media print {
+    .table-wrapper::before {
+        display: none;
+    }
+}

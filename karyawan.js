@@ -345,27 +345,25 @@ function injectCRUDLoadingStyle() {
             align-items: center;
             justify-content: center;
 
+            position: relative;
             border-radius: 50%;
-
-            background:
-                #f3f4f6;
+            background: url("Logo.png") center / 38px 38px no-repeat;
 
         }
 
 
         .crud-spinner {
-
-            width: 30px;
-            height: 30px;
+            position: absolute;
+            inset: -3px;
 
             border-radius: 50%;
 
             border:
-                3px solid
-                #e5e7eb;
+                3px solid #efefe9;
 
             border-top-color:
-                #d71920;
+                #f7f40f;
+            border-right-color: #d71920;
 
             animation:
                 crudSpin .75s
@@ -2131,7 +2129,7 @@ function renderKaryawan() {
                             class="btn-secondary btn-small"
                             onclick="editKaryawan(${index})"
                         >
-                            Edit
+                            Ubah
                         </button>
 
                         <button
@@ -2166,7 +2164,7 @@ function renderKaryawan() {
                             class="btn-secondary btn-small"
                             onclick="editKaryawan(${index})"
                         >
-                            Edit
+                            Ubah
                         </button>
 
                         <button

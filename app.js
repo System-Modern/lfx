@@ -184,16 +184,16 @@ const PAGE_INFO = {
 
     dashboard: [
 
-        "Dashboard",
+        "Dasbor",
 
-        "Ringkasan planning lembur karyawan"
+        "Ringkasan rencana lembur karyawan"
 
     ],
 
 
     karyawan: [
 
-        "Database Karyawan",
+        "Data Karyawan",
 
         "Kelola data karyawan"
 
@@ -202,7 +202,7 @@ const PAGE_INFO = {
 
     planning: [
 
-        "Planning Lembur",
+        "Rencana Lembur",
 
         "Atur jadwal lembur karyawan"
 
@@ -3710,6 +3710,107 @@ window.refreshApp =
 
 window.APP_COLORS =
     APP_COLORS;
+
+
+/* =========================================================
+   IKON TOMBOL
+========================================================= */
+
+function enhanceButtonIcons(root = document) {
+    if (!window.lucide) {
+        return;
+    }
+
+    const iconByAction = {
+        preview: "eye",
+        edit: "pencil",
+        cetak: "download",
+        copy: "copy",
+        hapus: "trash-2",
+        upload: "upload",
+        download: "download",
+        "delete-file": "trash-2"
+    };
+
+    const iconByLabel = [
+        [/pratinjau|lihat/i, "eye"],
+        [/ubah|edit/i, "pencil"],
+        [/unduh|download/i, "download"],
+        [/salin/i, "copy"],
+        [/hapus/i, "trash-2"],
+        [/simpan/i, "save"],
+        [/buat|tambah/i, "plus"],
+        [/cetak/i, "printer"],
+        [/masuk/i, "log-in"],
+        [/cari/i, "search"],
+        [/saring|filter/i, "funnel"],
+        [/atur ulang|reset/i, "rotate-ccw"],
+        [/pilih semua/i, "list-checks"],
+        [/lepas penalti/i, "shield-check"],
+        [/batal|tutup/i, "x"],
+        [/penalti/i, "shield-alert"],
+        [/riwayat/i, "history"]
+    ];
+
+    root.querySelectorAll("button").forEach(function (button) {
+        if (button.classList.contains("menu-item") || button.querySelector("svg, [data-lucide]")) {
+            return;
+        }
+
+        const action = button.dataset.action || "";
+        const label = (button.textContent || "").trim();
+        const onclick = button.getAttribute("onclick") || "";
+        let icon = iconByAction[action];
+
+        if (!icon && (button.classList.contains("modal-close") || button.classList.contains("planning-toast-close"))) {
+            icon = "x";
+        }
+
+        if (!icon && /close|tutup/i.test(onclick)) {
+            icon = "x";
+        }
+
+        if (!icon) {
+            const match = iconByLabel.find(function (entry) {
+                return entry[0].test(label);
+            });
+            icon = match?.[1];
+        }
+
+        if (!icon) {
+            return;
+        }
+
+        const iconElement = document.createElement("i");
+        iconElement.setAttribute("data-lucide", icon);
+        iconElement.setAttribute("aria-hidden", "true");
+        button.prepend(iconElement);
+
+        if (!button.title && label) {
+            button.title = label;
+        }
+    });
+
+    window.lucide.createIcons();
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    let iconUpdateQueued = false;
+
+    enhanceButtonIcons();
+
+    new MutationObserver(function () {
+        if (iconUpdateQueued) {
+            return;
+        }
+
+        iconUpdateQueued = true;
+        requestAnimationFrame(function () {
+            enhanceButtonIcons();
+            iconUpdateQueued = false;
+        });
+    }).observe(document.body, { childList: true, subtree: true });
+});
 
 
 /* =========================================================
