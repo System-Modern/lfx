@@ -1,10 +1,8 @@
-/* Browser configuration.
-   Isi nilai real-nya sebelum file ini dipanggil, misalnya:
-   window.__PLANBUR_ENV__ = {
-        SUPABASE_URL: "https://your-project.supabase.co",
-        SUPABASE_ANON_KEY: "your-anon-key"
-   };
-*/
+window.__PLANBUR_ENV__ = {
+    SUPABASE_URL: "https://msthucqijrjmmntsdscm.supabase.co",
+    SUPABASE_ANON_KEY: "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz"
+};
+
 (function (global) {
     const source = global.__PLANBUR_ENV__ || global.PlanburEnv || {};
     const placeholderUrl = "__SUPABASE_URL__";
