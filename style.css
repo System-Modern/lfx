@@ -7313,3 +7313,336 @@ button:not(.menu-item) {
     border-radius: var(--radius-lg);
 }
 
+
+
+/* =========================================================
+   BRAND ENHANCEMENTS
+========================================================= */
+
+.brand-tagline {
+    display: block;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    margin-top: 2px;
+}
+
+.brand-version {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 6px;
+    padding: 2px 8px;
+    background: rgba(247, 244, 15, 0.15);
+    border: 1px solid rgba(247, 244, 15, 0.25);
+    border-radius: 99px;
+    color: rgba(247, 244, 15, 0.9);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* =========================================================
+   MENU ENHANCEMENTS
+========================================================= */
+
+.menu-label {
+    flex: 1;
+    text-align: left;
+}
+
+.menu-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.menu-badge-live {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+    animation: badgePulse 2s infinite;
+}
+
+@keyframes badgePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* =========================================================
+   SIDEBAR FOOTER
+========================================================= */
+
+.sidebar-footer {
+    padding: 14px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.sidebar-footer-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: background 0.2s ease;
+    cursor: default;
+}
+
+.sidebar-footer-inner:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.sidebar-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 13px;
+    font-weight: 800;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.sidebar-user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar-user-name {
+    display: block;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.sidebar-user-role {
+    display: block;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 10px;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar-user-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2), 0 0 8px rgba(16, 185, 129, 0.4);
+    flex-shrink: 0;
+    animation: userDotPulse 3s infinite;
+}
+
+@keyframes userDotPulse {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2), 0 0 8px rgba(16, 185, 129, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1), 0 0 12px rgba(16, 185, 129, 0.6); }
+}
+
+/* =========================================================
+   TOPBAR ENHANCEMENTS
+========================================================= */
+
+.page-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.page-title-icon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-sm);
+    color: #1e1b4b;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+}
+
+.page-title-icon:hover {
+    transform: rotate(10deg) scale(1.05);
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.date-now {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.date-now svg {
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+
+.topbar-pulse {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border-radius: 99px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: #059669;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.topbar-pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    animation: onlinePulse 2s infinite;
+}
+
+@keyframes onlinePulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* =========================================================
+   STAT CARD WITH ICON
+========================================================= */
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.stat-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-card-icon {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+    position: relative;
+    z-index: 1;
+}
+
+.stat-card:hover .stat-card-icon {
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.stat-icon-amber {
+    background: linear-gradient(135deg, rgba(247, 244, 15, 0.2), rgba(251, 191, 36, 0.15));
+    color: #b45309;
+    border: 1px solid rgba(247, 244, 15, 0.25);
+    box-shadow: 0 4px 12px rgba(247, 244, 15, 0.1);
+}
+
+.stat-icon-emerald {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(5, 150, 105, 0.12));
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);
+}
+
+.stat-icon-blue {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(37, 99, 235, 0.12));
+    color: #2563eb;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.stat-icon-violet {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(109, 40, 217, 0.12));
+    color: #7c3aed;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
+}
+
+/* =========================================================
+   CHART HEADING ICON UPGRADE
+========================================================= */
+
+.chart-heading-icon {
+    transition: transform 0.3s ease;
+}
+
+.chart-heading-icon:hover {
+    transform: scale(1.1);
+}
+
+/* =========================================================
+   BTN ICON ALIGNMENT
+========================================================= */
+
+.btn-primary,
+.btn-secondary,
+.btn-cancel,
+.btn-filter-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* =========================================================
+   ACCESS GATE PREMIUM
+========================================================= */
+
+#accessGate {
+    background: linear-gradient(145deg, #0d0820, #1a1040, #0c1a30) !important;
+}
+
+.access-card {
+    border-radius: 24px !important;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.08) !important;
+}
+
+.access-card h1 {
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px !important;
+}
+
+.access-submit {
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    font-weight: 700 !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3) !important;
+}
+
+.access-card input:focus {
+    border-color: #8b5cf6 !important;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15) !important;
+}
