@@ -25,7 +25,7 @@ html {
 body {
     min-height: 100vh;
     font-family: 'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif;
-    background: #f0f2f5;
+    background: #f0f1f8;
     color: #1a1d23;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
@@ -260,7 +260,7 @@ button {
 
     overflow: hidden;
 
-    box-shadow: 0 8px 24px rgba(247, 244, 15, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 24px rgba(247, 244, 15, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.12), 0 0 40px rgba(247, 244, 15, 0.1);
 
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
 }
@@ -381,10 +381,10 @@ button {
 }
 
 .menu-item.active {
-    background: linear-gradient(135deg, rgba(247, 244, 15, 0.15), rgba(247, 244, 15, 0.08));
+    background: linear-gradient(135deg, rgba(247, 244, 15, 0.18), rgba(247, 244, 15, 0.08));
     color: var(--linfox-yellow);
-    border: 1px solid rgba(247, 244, 15, 0.2);
-    box-shadow: 0 4px 16px rgba(247, 244, 15, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(247, 244, 15, 0.25);
+    box-shadow: 0 4px 20px rgba(247, 244, 15, 0.12), 0 0 0 1px rgba(247, 244, 15, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     font-weight: 700;
 }
 
@@ -442,10 +442,13 @@ button {
 
     background: var(--background);
 
-    /* Subtle background gradient */
+    /* Vibrant multi-color background blobs */
     background-image:
-        radial-gradient(at 90% 0%, rgba(247, 244, 15, 0.03) 0px, transparent 40%),
-        radial-gradient(at 10% 100%, rgba(59, 130, 246, 0.03) 0px, transparent 40%);
+        radial-gradient(at 90% 2%, rgba(139, 92, 246, 0.08) 0px, transparent 35%),
+        radial-gradient(at 15% 15%, rgba(247, 244, 15, 0.06) 0px, transparent 30%),
+        radial-gradient(at 85% 80%, rgba(16, 185, 129, 0.06) 0px, transparent 35%),
+        radial-gradient(at 5% 85%, rgba(59, 130, 246, 0.07) 0px, transparent 35%),
+        radial-gradient(at 50% 50%, rgba(236, 72, 153, 0.03) 0px, transparent 50%);
 
     animation: pageSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -7228,3 +7231,85 @@ button:not(.menu-item) {
         display: none;
     }
 }
+
+
+/* =========================================================
+   STAT CARD COLOR VARIANTS — WARNA-WARNI
+========================================================= */
+
+.stats-grid .stat-card:nth-child(1)::before {
+    background: linear-gradient(90deg, #F7F40F, rgba(247, 244, 15, 0));
+}
+.stats-grid .stat-card:nth-child(1)::after {
+    background: radial-gradient(circle, rgba(247, 244, 15, 0.14), transparent 65%);
+}
+.stats-grid .stat-card:nth-child(1):hover {
+    box-shadow: 0 12px 32px rgba(247, 244, 15, 0.12), var(--shadow-md);
+}
+
+.stats-grid .stat-card:nth-child(2)::before {
+    background: linear-gradient(90deg, #10b981, transparent);
+}
+.stats-grid .stat-card:nth-child(2)::after {
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.12), transparent 65%);
+}
+.stats-grid .stat-card:nth-child(2):hover {
+    box-shadow: 0 12px 32px rgba(16, 185, 129, 0.12), var(--shadow-md);
+}
+.stats-grid .stat-card:nth-child(2) .stat-number { color: #059669; }
+
+.stats-grid .stat-card:nth-child(3)::before {
+    background: linear-gradient(90deg, #3b82f6, transparent);
+}
+.stats-grid .stat-card:nth-child(3)::after {
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.12), transparent 65%);
+}
+.stats-grid .stat-card:nth-child(3):hover {
+    box-shadow: 0 12px 32px rgba(59, 130, 246, 0.12), var(--shadow-md);
+}
+.stats-grid .stat-card:nth-child(3) .stat-number { color: #2563eb; }
+
+.stats-grid .stat-card:nth-child(4)::before {
+    background: linear-gradient(90deg, #8b5cf6, transparent);
+}
+.stats-grid .stat-card:nth-child(4)::after {
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.12), transparent 65%);
+}
+.stats-grid .stat-card:nth-child(4):hover {
+    box-shadow: 0 12px 32px rgba(139, 92, 246, 0.12), var(--shadow-md);
+}
+.stats-grid .stat-card:nth-child(4) .stat-number { color: #7c3aed; }
+
+/* =========================================================
+   SUMMARY CARD COLOR VARIANTS
+========================================================= */
+
+.karyawan-summary .summary-card:first-child::before {
+    background: linear-gradient(180deg, #10b981, rgba(16, 185, 129, 0));
+}
+.karyawan-summary .summary-card:last-child::before {
+    background: linear-gradient(180deg, #f43f5e, rgba(244, 63, 94, 0));
+}
+
+/* =========================================================
+   PAGE TITLE GRADIENT TEXT
+========================================================= */
+
+.page-title h1 {
+    background: linear-gradient(135deg, #0d1117 0%, #1e3a5f 50%, #2d1b69 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* =========================================================
+   CARD TOP ACCENT VARIANTS
+========================================================= */
+
+/* Dashboard filter card */
+.dashboard-filter {
+    border-top: 2px solid transparent;
+    border-image: linear-gradient(90deg, #F7F40F, #10b981, #3b82f6, #8b5cf6) 1;
+    border-radius: var(--radius-lg);
+}
+
