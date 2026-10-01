@@ -1813,6 +1813,9 @@
         const jamSelesai =
             planningEl("jamSelesai");
 
+        const jenisLembur =
+            planningEl("jenisLembur");
+
         const keterangan =
             planningEl("keterangan");
 
@@ -2477,7 +2480,8 @@
                 gap:6px;
             }
 
-            .planning-preview-full {
+            .planning-preview-full,
+            .planning-preview-field.full {
                 grid-column:1/-1;
             }
 
@@ -2488,6 +2492,7 @@
             }
 
             .planning-preview-field input,
+            .planning-preview-field select,
             .planning-preview-field textarea {
                 width:100%;
                 box-sizing:border-box;
@@ -2498,6 +2503,7 @@
             }
 
             .planning-preview-field input:focus,
+            .planning-preview-field select:focus,
             .planning-preview-field textarea:focus {
                 border-color:#d71920;
             }
@@ -2834,6 +2840,25 @@
                     })
                 : [];
 
+        const formatJamInput = function (time) {
+            if (!time) return "";
+            const str = String(time).trim();
+            if (str.length >= 5 && str.includes(":")) {
+                return str.slice(0, 5);
+            }
+            return str;
+        };
+
+        const jamMulaiAwal = formatJamInput(item.jamMulai || item.jam_mulai || "");
+        const jamSelesaiAwal = formatJamInput(item.jamSelesai || item.jam_selesai || "");
+        const durasiAwal =
+            item.durasi ||
+            formatDurasiPlanning(
+                item.durasiMenit ||
+                hitungDurasiDariJam(jamMulaiAwal, jamSelesaiAwal)
+            ) ||
+            "";
+
         content.innerHTML = `
             <div class="planning-preview-form">
 
@@ -2859,17 +2884,6 @@
                 </div>
 
                 <div class="planning-preview-field">
-                    <label>Jam Mulai</label>
-                    <input
-                        type="time"
-                        id="previewJamMulai"
-                        value="${escapePlanningHTML(
-                            item.jamMulai || ""
-                        )}"
-                    >
-                </div>
-
-                <div class="planning-preview-field">
                     <label>Jenis Lembur</label>
                     <select id="previewJenisLembur">
                         <option value="harian" ${item.jenisLembur !== "tanggal_merah" ? "selected" : ""}>Harian</option>
@@ -2877,7 +2891,41 @@
                     </select>
                 </div>
 
-                <div class="planning-preview-field full">
+                <div class="planning-preview-field">
+                    <label>Jam Mulai</label>
+                    <input
+                        type="time"
+                        id="previewJamMulai"
+                        value="${escapePlanningHTML(
+                            jamMulaiAwal
+                        )}"
+                    >
+                </div>
+
+                <div class="planning-preview-field">
+                    <label>Jam Selesai</label>
+                    <input
+                        type="time"
+                        id="previewJamSelesai"
+                        value="${escapePlanningHTML(
+                            jamSelesaiAwal
+                        )}"
+                    >
+                </div>
+
+                <div class="planning-preview-field">
+                    <label>Durasi</label>
+                    <input
+                        type="text"
+                        id="previewDurasi"
+                        value="${escapePlanningHTML(
+                            durasiAwal
+                        )}"
+                        readonly
+                    >
+                </div>
+
+                <div class="planning-preview-field planning-preview-full full">
                     <label>Keterangan</label>
                     <input
                         id="previewKeterangan"

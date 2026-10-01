@@ -4,6 +4,12 @@ const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
 
+if (typeof process.loadEnvFile === "function") {
+    try {
+        process.loadEnvFile();
+    } catch (_) {}
+}
+
 const port = Number(process.env.PORT || 3000);
 const supabaseUrl = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const supabaseAnonKey = String(process.env.SUPABASE_ANON_KEY || "");
