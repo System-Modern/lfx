@@ -1077,8 +1077,119 @@
         `;
 
                 document.head.appendChild(style);
-        document.body.appendChild(loading);
+    }
 
+
+    /* =========================================================
+    LOADING OVERLAY
+    ========================================================= */
+
+    function initPlanningLoading() {
+        if (planningEl("planningGlobalLoading")) {
+            return;
+        }
+
+        const loading = document.createElement("div");
+        loading.id = "planningGlobalLoading";
+        loading.innerHTML = `
+            <div class="planning-loading-box">
+                <div class="planning-loading-brand">
+                    <img src="Logo.png" alt="LINFOX">
+                    <span class="planning-loading-spinner"></span>
+                </div>
+                <div class="planning-loading-text" id="planningLoadingText">
+                    Memproses...
+                </div>
+            </div>
+        `;
+
+        Object.assign(loading.style, {
+            position: "fixed",
+            inset: "0",
+            background: "rgba(7, 8, 20, 0.75)",
+            backdropFilter: "blur(16px)",
+            webkitBackdropFilter: "blur(16px)",
+            display: "none",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: "999999"
+        });
+
+        const style = document.createElement("style");
+        style.id = "planningLoadingStyle";
+        style.textContent = `
+            .planning-loading-box {
+                min-width: 260px;
+                padding: 32px 40px;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 20px;
+                background: rgba(15, 17, 35, 0.92);
+                backdrop-filter: blur(30px);
+                -webkit-backdrop-filter: blur(30px);
+                box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+                text-align: center;
+                font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+                animation: planningLoadingPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            }
+
+            @keyframes planningLoadingPop {
+                from { opacity: 0; transform: scale(0.85); }
+                to { opacity: 1; transform: scale(1); }
+            }
+
+            .planning-loading-brand {
+                position: relative;
+                width: 76px;
+                height: 76px;
+                margin: 0 auto 20px;
+                display: grid;
+                place-items: center;
+            }
+
+            .planning-loading-brand img {
+                width: 44px;
+                height: 44px;
+                object-fit: contain;
+                filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+            }
+
+            .planning-loading-spinner {
+                position: absolute;
+                inset: 0;
+                border: 3px solid rgba(255, 255, 255, 0.08);
+                border-top-color: #8b5cf6;
+                border-right-color: #ec4899;
+                border-radius: 50%;
+                animation: planningSpin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+                box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+            }
+
+            .planning-loading-text {
+                font-size: 14px;
+                font-weight: 700;
+                color: #f8fafc;
+                letter-spacing: 0.3px;
+            }
+
+            @keyframes planningSpin {
+                to { transform: rotate(360deg); }
+            }
+
+            .btn-spinner {
+                display: inline-block;
+                width: 14px;
+                height: 14px;
+                border: 2px solid rgba(255,255,255,0.3);
+                border-top-color: #ffffff;
+                border-radius: 50%;
+                animation: planningSpin 0.7s linear infinite;
+                margin-right: 6px;
+                vertical-align: middle;
+            }
+        `;
+
+        document.head.appendChild(style);
+        document.body.appendChild(loading);
     }
 
 
@@ -1136,12 +1247,8 @@
         button.disabled = true;
 
         button.innerHTML = `
-            <span style="
-                display:inline-flex;
-                align-items:center;
-                gap:6px;
-            ">
-                ⏳ Memproses...
+            <span style="display:inline-flex; align-items:center; justify-content:center; gap:6px;">
+                <span class="btn-spinner"></span> Memproses...
             </span>
         `;
 

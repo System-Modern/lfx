@@ -7646,3 +7646,29 @@ button:not(.menu-item) {
     border-color: #8b5cf6 !important;
     box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15) !important;
 }
+
+/* =========================================================
+   GLOBAL LOADING BUTTON & SPINNER STYLES
+========================================================= */
+
+.btn-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: globalSpin 0.7s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+@keyframes globalSpin {
+    to { transform: rotate(360deg); }
+}
+
+button:disabled {
+    opacity: 0.75 !important;
+    cursor: not-allowed !important;
+}
+
