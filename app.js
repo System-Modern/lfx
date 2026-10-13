@@ -3820,3 +3820,101 @@ document.addEventListener("DOMContentLoaded", function () {
 console.log(
     "app.js optimized + dashboard filter periode aktif"
 );
+
+
+/* =========================================================
+   INTERACTIVE HELLO GREETING & MASCOT SYSTEM
+========================================================= */
+
+(function () {
+    const greetingMessages = [
+        "Halo Rekan Linfox! Semangat kerjanya hari ini! 🚀",
+        "Planning lembur tersinkronisasi cepat & aman! ⚡",
+        "Bukti foto otomatis terkompresi kilat & hemat kuota! 📸",
+        "Sistem berjalan responsif, enteng dan stabil! ✨",
+        "Delivering Solutions - PT Linfox Logistics Indonesia! 🛡️",
+        "Jaga kesehatan & tetap utamakan keselamatan kerja! 👷‍♂️",
+        "Ada pertanyaan? Pantau rekap lembur di menu Dasbor & Laporan! 📊"
+    ];
+    let currentMessageIndex = 0;
+
+    function getTimeGreeting() {
+        const hour = new Date().getHours();
+        if (hour >= 4 && hour < 11) return "Halo, Selamat Pagi! 🌅";
+        if (hour >= 11 && hour < 15) return "Halo, Selamat Siang! ☀️";
+        if (hour >= 15 && hour < 18) return "Halo, Selamat Sore! 🌇";
+        return "Halo, Selamat Malam! 🌙";
+    }
+
+    function updateLiveClock() {
+        const now = new Date();
+        const timeEl = document.getElementById("helloLiveTime");
+        const titleEl = document.getElementById("helloGreetingTitle");
+        const dateEl = document.getElementById("helloCurrentDateBadge");
+
+        if (timeEl) {
+            const h = String(now.getHours()).padStart(2, "0");
+            const m = String(now.getMinutes()).padStart(2, "0");
+            const s = String(now.getSeconds()).padStart(2, "0");
+            timeEl.textContent = h + ":" + m + ":" + s + " WIB";
+        }
+
+        if (titleEl && !titleEl.dataset.customText) {
+            titleEl.textContent = getTimeGreeting();
+        }
+
+        if (dateEl) {
+            const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+            const months = [
+                "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+                "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+            ];
+            dateEl.textContent = days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear();
+        }
+    }
+
+    window.triggerHelloInteractive = function () {
+        currentMessageIndex = (currentMessageIndex + 1) % greetingMessages.length;
+        const bubble = document.getElementById("helloSpeechBubble");
+        const mascot = document.getElementById("mascotAvatarIcon");
+        const wave = document.getElementById("helloWaveEmoji");
+        const chipText = document.getElementById("helloInteractiveText");
+
+        if (bubble) {
+            bubble.classList.remove("speech-pop");
+            void bubble.offsetWidth;
+            bubble.textContent = greetingMessages[currentMessageIndex];
+            bubble.classList.add("speech-pop");
+        }
+
+        if (mascot) {
+            mascot.classList.remove("mascot-bounce");
+            void mascot.offsetWidth;
+            mascot.classList.add("mascot-bounce");
+        }
+
+        if (wave) {
+            wave.classList.remove("wave-active");
+            void wave.offsetWidth;
+            wave.classList.add("wave-active");
+        }
+
+        if (chipText) {
+            chipText.textContent = "Sapaan Terkirim! ✨";
+            setTimeout(function () {
+                if (chipText) chipText.textContent = "Sapa Lagi";
+            }, 2000);
+        }
+    };
+
+    function initGreeting() {
+        updateLiveClock();
+        setInterval(updateLiveClock, 1000);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initGreeting);
+    } else {
+        initGreeting();
+    }
+})();

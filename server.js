@@ -22,6 +22,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const target = new URL(supabaseUrl);
 const transport = target.protocol === "https:" ? https : http;
+const keepAliveAgent = target.protocol === "https:"
+    ? new https.Agent({ keepAlive: true, keepAliveMsecs: 60000, maxSockets: 64, maxFreeSockets: 16 })
+    : new http.Agent({ keepAlive: true, keepAliveMsecs: 60000, maxSockets: 64, maxFreeSockets: 16 });
 
 function proxy(request, response) {
     if (!request.url.startsWith(proxyPrefix + "/")) {
@@ -41,13 +44,17 @@ function proxy(request, response) {
         port: target.port || undefined,
         method: request.method,
         path: upstreamPath,
-        headers: upstreamHeaders
+        headers: upstreamHeaders,
+        agent: keepAliveAgent
     }, (upstreamResponse) => {
         const responseHeaders = { ...upstreamResponse.headers };
         delete responseHeaders["access-control-allow-origin"];
         responseHeaders["access-control-allow-origin"] = request.headers.origin || "*";
         responseHeaders["access-control-allow-headers"] = "apikey, authorization, content-type, x-client-info, prefer, range";
         responseHeaders["access-control-allow-methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+        if (upstreamPath.includes("/storage/v1/object/") && upstreamResponse.statusCode === 200) {
+            responseHeaders["cache-control"] = "public, max-age=31536000, immutable";
+        }
         response.writeHead(upstreamResponse.statusCode || 502, responseHeaders);
         upstreamResponse.pipe(response);
     });
@@ -79,11 +86,18 @@ function serveStatic(request, response) {
         ".css": "text/css; charset=utf-8",
         ".html": "text/html; charset=utf-8",
         ".js": "application/javascript; charset=utf-8",
-        ".png": "image/png"
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
+        ".json": "application/json; charset=utf-8",
+        ".ico": "image/x-icon"
     };
 
     response.writeHead(200, {
-        "Content-Type": contentTypes[extension] || "application/octet-stream"
+        "Content-Type": contentTypes[extension] || "application/octet-stream",
+        "Cache-Control": "no-cache, must-revalidate"
     });
     fs.createReadStream(filePath).pipe(response);
 }

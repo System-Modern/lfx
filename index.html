@@ -55,7 +55,7 @@
 
     <link
         rel="stylesheet"
-        href="style.css?v=20260829-2"
+        href="style.css?v=20261011-3"
     >
 
     <style>
@@ -179,22 +179,56 @@
 <body>
 
 <div id="accessGate" role="dialog" aria-modal="true" aria-labelledby="accessTitle">
+    <div class="access-bg-effects" aria-hidden="true">
+        <div class="access-orb access-orb-1"></div>
+        <div class="access-orb access-orb-2"></div>
+        <div class="access-orb access-orb-3"></div>
+    </div>
     <form id="accessForm" class="access-card" autocomplete="off">
-        <h1 id="accessTitle">Akses Planning Lembur</h1>
-        <p>Masukkan sandi untuk membuka halaman utama.</p>
+        <div class="access-brand-header">
+            <div class="access-logo-wrap">
+                <img src="Logo.png" alt="LINFOX Logo" class="access-logo-img">
+            </div>
+            <div class="access-badge-pill">
+                <span class="access-pulse-dot"></span>
+                <span>PORTAL RESMI LEMBUR</span>
+            </div>
+        </div>
 
-        <label for="accessPassword">Sandi</label>
-        <input
-            id="accessPassword"
-            name="password"
-            type="password"
-            autocomplete="current-password"
-            required
-            autofocus
-        >
+        <h1 id="accessTitle">Selamat Datang 👋</h1>
+        <p>Silakan masukkan sandi otentikasi untuk membuka dasbor operasional Linfox.</p>
+
+        <div class="access-field-group">
+            <label for="accessPassword">Sandi Keamanan</label>
+            <div class="access-input-box">
+                <span class="access-input-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                </span>
+                <input
+                    id="accessPassword"
+                    name="password"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Masukkan sandi akses..."
+                    required
+                    autofocus
+                >
+            </div>
+        </div>
 
         <button id="accessSubmit" class="access-submit" type="submit">
-            Masuk
+            <span class="btn-text">Buka Akses Dasbor</span>
+            <span class="btn-loading-state" style="display: none;">
+                <span class="access-spinner"></span>
+                <span>Memverifikasi Akses...</span>
+            </span>
+            <span class="btn-success-state" style="display: none;">
+                <span class="access-check-icon">✓</span>
+                <span>Akses Diterima!</span>
+            </span>
         </button>
 
         <div id="accessError" role="alert" aria-live="polite"></div>
@@ -209,6 +243,7 @@
         const passwordInput = document.getElementById("accessPassword");
         const submitButton = document.getElementById("accessSubmit");
         const errorBox = document.getElementById("accessError");
+        const gate = document.getElementById("accessGate");
 
         async function hashPassword(value) {
             const data = new TextEncoder().encode(value);
@@ -224,26 +259,57 @@
         form.addEventListener("submit", async function (event) {
             event.preventDefault();
             errorBox.textContent = "";
+
+            const btnText = submitButton.querySelector(".btn-text");
+            const btnLoading = submitButton.querySelector(".btn-loading-state");
+            const btnSuccess = submitButton.querySelector(".btn-success-state");
+
+            // Cool loading animation state
             submitButton.disabled = true;
+            if (btnText) btnText.style.display = "none";
+            if (btnLoading) btnLoading.style.display = "inline-flex";
+            if (btnSuccess) btnSuccess.style.display = "none";
+            form.classList.remove("gate-shake");
 
             try {
+                // Graceful delay for sleek loading animation experience
+                await new Promise(function (resolve) { setTimeout(resolve, 600); });
+
                 const passwordHash = await hashPassword(passwordInput.value);
 
                 if (passwordHash !== validToken) {
+                    if (btnText) btnText.style.display = "inline-flex";
+                    if (btnLoading) btnLoading.style.display = "none";
+                    submitButton.disabled = false;
                     passwordInput.value = "";
                     passwordInput.focus();
-                    errorBox.textContent = "Sandi salah. Silakan coba lagi.";
+                    form.classList.add("gate-shake");
+                    errorBox.innerHTML = '<span class="error-badge">⚠️ Sandi salah. Silakan coba lagi.</span>';
                     return;
                 }
 
+                // Correct password: Show success state
+                if (btnLoading) btnLoading.style.display = "none";
+                if (btnSuccess) btnSuccess.style.display = "inline-flex";
+                submitButton.classList.add("access-verified");
+
                 sessionStorage.setItem(tokenKey, validToken);
-                document.documentElement.classList.remove("access-locked");
-                passwordInput.value = "";
+
+                // Smooth fade and zoom-out transition
+                if (gate) {
+                    gate.classList.add("gate-fade-out");
+                }
+
+                setTimeout(function () {
+                    document.documentElement.classList.remove("access-locked");
+                    passwordInput.value = "";
+                }, 400);
             } catch (error) {
                 console.error("Validasi sandi gagal:", error);
-                errorBox.textContent = "Browser tidak dapat memvalidasi sandi.";
-            } finally {
+                if (btnText) btnText.style.display = "inline-flex";
+                if (btnLoading) btnLoading.style.display = "none";
                 submitButton.disabled = false;
+                errorBox.textContent = "Browser tidak dapat memvalidasi sandi.";
             }
         });
     })();
@@ -510,6 +576,54 @@
         id="dashboard"
         class="page active-page"
     >
+
+        <!-- =================================================
+             INTERACTIVE WELCOME & HELLO BANNER
+        ================================================== -->
+        <div class="dashboard-hello-card" id="dashboardHelloBanner">
+            <div class="hello-ambient-glow" aria-hidden="true"></div>
+            <div class="hello-left">
+                <div class="hello-header">
+                    <span class="hello-wave" id="helloWaveEmoji" onclick="window.triggerHelloInteractive()" title="Klik untuk sapaan hangat! 👋">👋</span>
+                    <div class="hello-titles">
+                        <h2 id="helloGreetingTitle">Halo, Selamat Datang!</h2>
+                        <span class="hello-live-badge">
+                            <span class="live-dot"></span>
+                            <span id="helloLiveTime">--:--:-- WIB</span>
+                        </span>
+                    </div>
+                </div>
+                <p class="hello-subtitle">
+                    Portal Perencanaan & Lembur Karyawan <strong>PT Linfox Logistics Indonesia</strong>. Kelola jadwal tim, pantau durasi kerja, serta kelola bukti foto SPL secara cepat & terpadu.
+                </p>
+                <div class="hello-chips">
+                    <div class="hello-chip chip-glow" title="Kompresi foto kilat otomatis aktif untuk upload & unduh super cepat">
+                        <span class="chip-icon">⚡</span>
+                        <span>Mode Unggah Kilat Aktif</span>
+                    </div>
+                    <div class="hello-chip" title="Tanggal kalender sistem">
+                        <span class="chip-icon">📅</span>
+                        <span id="helloCurrentDateBadge">-</span>
+                    </div>
+                    <div class="hello-chip chip-interactive" onclick="window.triggerHelloInteractive()" title="Klik untuk sapaan interaktif">
+                        <span class="chip-icon">✨</span>
+                        <span id="helloInteractiveText">Sapa Sistem</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hello-right">
+                <div class="hello-mascot-card" onclick="window.triggerHelloInteractive()" title="Klik maskot untuk menyapa!">
+                    <div class="mascot-avatar-wrap">
+                        <div class="mascot-ring"></div>
+                        <div class="mascot-avatar" id="mascotAvatarIcon">🦊</div>
+                    </div>
+                    <div class="hello-speech-bubble" id="helloSpeechBubble">
+                        Halo Rekan Linfox! Semangat kerjanya hari ini! 🚀
+                    </div>
+                </div>
+            </div>
+        </div>
+
 
 
         <!-- =================================================
@@ -2461,12 +2575,12 @@
 <!-- =====================================================
      JAVASCRIPT
 ====================================================== -->
-<script src="env.js?v=20260905-1"></script>
+<script src="env.js?v=20261011-5"></script>
 <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-<script src="database.js?v=20260905-1"></script>
-<script src="karyawan.js?v=20260905-1"></script>
-<script src="lembur.js?v=20260905-1"></script>
-<script src="app.js?v=20260905-1"></script>
+<script src="database.js?v=20261011-5"></script>
+<script src="karyawan.js?v=20261011-5"></script>
+<script src="lembur.js?v=20261011-5"></script>
+<script src="app.js?v=20261011-5"></script>
 
 
 </body>

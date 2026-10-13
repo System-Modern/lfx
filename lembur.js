@@ -123,6 +123,116 @@
         return previewUrl;
     }
 
+    const planningEvidenceCache = new Map();
+    const planningPreviewBlobCache = new Map();
+    window.__previewBlobCache = planningPreviewBlobCache;
+    window.__evidenceBlobCache = planningEvidenceCache;
+
+    let preloadedLogoDataUrl = null;
+    (function preloadExportLogo() {
+        try {
+            if (typeof window !== "undefined") {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.onload = function () {
+                    try {
+                        const c = document.createElement("canvas");
+                        c.width = img.naturalWidth || 92;
+                        c.height = img.naturalHeight || 60;
+                        const ctx = c.getContext("2d");
+                        ctx.drawImage(img, 0, 0, c.width, c.height);
+                        preloadedLogoDataUrl = c.toDataURL("image/png");
+                    } catch (_) {}
+                };
+                img.src = "Logo.png";
+            }
+        } catch (_) {}
+    })();
+
+    async function compressImageForUpload(file, options = {}) {
+        const { maxWidth = 1280, maxHeight = 1280, quality = 0.72 } = options;
+        if (!file || !file.type || !file.type.startsWith("image/")) {
+            return file;
+        }
+        if (file.size <= 150 * 1024) {
+            return file;
+        }
+
+        try {
+            let bitmap = null;
+            if (typeof createImageBitmap === "function") {
+                try {
+                    bitmap = await createImageBitmap(file);
+                } catch (_) {}
+            }
+
+            let width, height, source;
+            if (bitmap) {
+                width = bitmap.width;
+                height = bitmap.height;
+                source = bitmap;
+            } else {
+                const img = await new Promise((resolve, reject) => {
+                    const url = URL.createObjectURL(file);
+                    const el = new Image();
+                    el.onload = () => { URL.revokeObjectURL(url); resolve(el); };
+                    el.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+                    el.src = url;
+                });
+                width = img.naturalWidth || img.width;
+                height = img.naturalHeight || img.height;
+                source = img;
+            }
+
+            let targetWidth = width;
+            let targetHeight = height;
+            if (targetWidth > maxWidth || targetHeight > maxHeight) {
+                const ratio = Math.min(maxWidth / targetWidth, maxHeight / targetHeight);
+                targetWidth = Math.max(1, Math.round(targetWidth * ratio));
+                targetHeight = Math.max(1, Math.round(targetHeight * ratio));
+            }
+
+            let canvas, ctx;
+            if (typeof OffscreenCanvas !== "undefined") {
+                canvas = new OffscreenCanvas(targetWidth, targetHeight);
+                ctx = canvas.getContext("2d", { alpha: false });
+            } else {
+                canvas = document.createElement("canvas");
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                ctx = canvas.getContext("2d", { alpha: false });
+            }
+            if (!ctx) return file;
+
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, targetWidth, targetHeight);
+            ctx.drawImage(source, 0, 0, targetWidth, targetHeight);
+
+            if (bitmap && typeof bitmap.close === "function") {
+                bitmap.close();
+            }
+
+            let blob = null;
+            if (canvas.convertToBlob) {
+                blob = await canvas.convertToBlob({ type: "image/jpeg", quality });
+            } else {
+                blob = await new Promise((resolve) => {
+                    canvas.toBlob(resolve, "image/jpeg", quality);
+                });
+            }
+
+            if (!blob || blob.size >= file.size) {
+                return file;
+            }
+
+            const cleanBase = file.name.replace(/\.[^.]+$/, "");
+            return new File([blob], `${cleanBase}.jpg`, { type: "image/jpeg" });
+        } catch (compressionError) {
+            console.warn("[Kompresi Gambar] Fallback ke file asli:", compressionError);
+            return file;
+        }
+    }
+
     async function uploadPlanningEvidence(id, button) {
         const input = document.createElement("input");
         input.type = "file";
@@ -143,8 +253,8 @@
                 return;
             }
 
-            if (file.size > 10 * 1024 * 1024) {
-                showPlanningToast("error", "File terlalu besar", "Ukuran file maksimal 10 MB.");
+            if (file.size > 20 * 1024 * 1024) {
+                showPlanningToast("error", "File terlalu besar", "Ukuran file maksimal 20 MB.");
                 return;
             }
 
@@ -153,14 +263,31 @@
                 return;
             }
 
-            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-            const filePath = `${id}/${Date.now()}-${safeName}`;
+            const originalButtonText = button.textContent;
             button.disabled = true;
 
             try {
+                let uploadFile = file;
+                const isImage = file.type?.startsWith("image/") || ["jpg", "jpeg", "png", "webp"].includes(fileExtension);
+
+                if (isImage) {
+                    button.textContent = "⏳ Kompres...";
+                    uploadFile = await compressImageForUpload(file);
+                }
+
+                planningEvidenceCache.set(String(id), uploadFile);
+
+                button.textContent = "🚀 Unggah...";
+                const safeName = uploadFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+                const filePath = `${id}/${Date.now()}-${safeName}`;
+
                 const { error: uploadError } = await supabaseClient.storage
                     .from("planning-bukti")
-                    .upload(filePath, file, { upsert: false, contentType: file.type });
+                    .upload(filePath, uploadFile, {
+                        upsert: true,
+                        contentType: uploadFile.type,
+                        cacheControl: "31536000"
+                    });
 
                 if (uploadError) throw uploadError;
 
@@ -169,7 +296,7 @@
                     .getPublicUrl(filePath);
                 const { error: updateError } = await supabaseClient
                     .from("planning_lembur")
-                    .update({ bukti_url: publicData.publicUrl, bukti_nama: file.name })
+                    .update({ bukti_url: publicData.publicUrl, bukti_nama: uploadFile.name })
                     .eq("kode_planning", id);
 
                 if (updateError) throw updateError;
@@ -177,14 +304,21 @@
                 const planningItem = findPlanningById(id);
                 if (planningItem) {
                     planningItem.buktiUrl = publicData.publicUrl;
-                    planningItem.buktiNama = file.name;
+                    planningItem.buktiNama = uploadFile.name;
+                }
+
+                if (publicData.publicUrl) {
+                    planningEvidenceCache.set(publicData.publicUrl, uploadFile);
+                    planningEvidenceCache.set(String(id), uploadFile);
                 }
 
                 button.textContent = "✓ Foto";
                 button.classList.add("has-file");
-                button.title = file.name;
-                showPlanningToast("success", "File berhasil diupload", file.name);
+                button.title = uploadFile.name;
+                const sizeKb = Math.round(uploadFile.size / 1024);
+                showPlanningToast("success", "File berhasil diupload", `${uploadFile.name} (${sizeKb} KB)`);
             } catch (error) {
+                button.textContent = originalButtonText;
                 showPlanningToast("error", "Upload gagal", error.message || "Gagal menyimpan file ke database.");
             } finally {
                 button.disabled = false;
@@ -245,32 +379,65 @@
             return;
         }
 
+        const fileName = evidence.name || `bukti-${id}`;
+        const urlOrData = evidence.data;
+
+        if (planningEvidenceCache.has(String(id))) {
+            triggerPlanningEvidenceDownload(planningEvidenceCache.get(String(id)), fileName);
+            return;
+        }
+
+        if (planningEvidenceCache.has(urlOrData)) {
+            triggerPlanningEvidenceDownload(planningEvidenceCache.get(urlOrData), fileName);
+            return;
+        }
+
         showPlanningLoading("Mengunduh bukti...");
 
         try {
-            const storageLocation = getPlanningStorageLocation(evidence.data);
-            let fileBlob;
+            let fileBlob = null;
 
-            if (storageLocation && supabaseClient) {
-                const { data, error } = await supabaseClient.storage
-                    .from(storageLocation.bucket)
-                    .download(storageLocation.path);
+            if (typeof urlOrData === "string" && (urlOrData.startsWith("http://") || urlOrData.startsWith("https://"))) {
+                try {
+                    let fetchUrl = urlOrData;
+                    const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+                    if (urlOrData.includes(supabaseBase)) {
+                        fetchUrl = urlOrData.replace(supabaseBase, window.location.origin + "/supabase");
+                    }
+                    const response = await fetch(fetchUrl, { cache: "force-cache" });
+                    if (response.ok) {
+                        fileBlob = await response.blob();
+                    } else if (fetchUrl !== urlOrData) {
+                        const directResp = await fetch(urlOrData, { cache: "force-cache" });
+                        if (directResp.ok) fileBlob = await directResp.blob();
+                    }
+                } catch (_) {}
+            }
 
-                if (error) throw error;
-                fileBlob = data;
-            } else {
-                const response = await fetch(evidence.data);
-                if (!response.ok) {
-                    throw new Error(`Gagal mengambil bukti (${response.status}).`);
+            if (!fileBlob) {
+                const storageLocation = getPlanningStorageLocation(urlOrData);
+                if (storageLocation && supabaseClient) {
+                    const { data, error } = await supabaseClient.storage
+                        .from(storageLocation.bucket)
+                        .download(storageLocation.path);
+
+                    if (error) throw error;
+                    fileBlob = data;
+                } else if (typeof urlOrData === "string") {
+                    const response = await fetch(urlOrData);
+                    if (!response.ok) {
+                        throw new Error(`Gagal mengambil bukti (${response.status}).`);
+                    }
+                    fileBlob = await response.blob();
                 }
-                fileBlob = await response.blob();
             }
 
             if (!(fileBlob instanceof Blob) || fileBlob.size <= 0) {
                 throw new Error("File bukti kosong atau tidak dapat dibaca.");
             }
 
-            triggerPlanningEvidenceDownload(fileBlob, evidence.name || `bukti-${id}`);
+            planningEvidenceCache.set(urlOrData, fileBlob);
+            triggerPlanningEvidenceDownload(fileBlob, fileName);
         } catch (error) {
             showPlanningToast("error", "Unduhan gagal", error.message || "Berkas bukti tidak dapat diunduh.");
         } finally {
@@ -282,6 +449,9 @@
         localStorage.removeItem(getPlanningEvidenceKey(id));
         const planningItem = findPlanningById(id);
         const evidenceUrl = planningItem?.buktiUrl || "";
+        if (evidenceUrl) {
+            planningEvidenceCache.delete(evidenceUrl);
+        }
 
         if (supabaseClient) {
             if (evidenceUrl) {
@@ -307,7 +477,7 @@
             }
         }
 
-        if (planningItem) {
+                if (planningItem) {
             planningItem.buktiUrl = "";
             planningItem.buktiNama = "";
         }
@@ -2527,16 +2697,18 @@
                 );
             }
 
-            const previewSaved =
-                await cetakPlanningPNG(
-                    idPlanning,
-                    {
-                        download: false,
-                        savePreview: true,
-                        allowWhileSaving: true,
-                        silent: true
-                    }
-                );
+                        // Generate preview non-blocking in background
+            cetakPlanningPNG(
+                idPlanning,
+                {
+                    download: false,
+                    savePreview: true,
+                    allowWhileSaving: true,
+                    silent: true
+                }
+            ).catch(function (e) {
+                console.warn("[Background Preview] Gagal:", e);
+            });
 
             renderPlanning();
 
@@ -2556,13 +2728,9 @@
             closePlanningModal();
 
             showPlanningToast(
-                previewSaved ? "success" : "warning",
-                previewSaved
-                    ? "Planning berhasil dibuat"
-                    : "Rencana tersimpan, pratinjau gagal dibuat",
-                previewSaved
-                    ? `${selected.length} karyawan berhasil ditambahkan dan pratinjau tersimpan.`
-                    : "Data rencana tersimpan, tetapi gambar pratinjau belum berhasil diperbarui."
+                "success",
+                "Planning Berhasil",
+                "Data planning lembur berhasil disimpan!"
             );
 
         } catch (error) {
@@ -3006,28 +3174,48 @@
                 display:none;
                 align-items:center;
                 justify-content:center;
+                font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;
             }
 
             .planning-preview-modal.active {
                 display:flex;
+                animation:modalFadeIn 0.25s ease;
+            }
+
+            @keyframes modalFadeIn {
+                from { opacity:0; }
+                to { opacity:1; }
             }
 
             .planning-preview-overlay {
                 position:absolute;
                 inset:0;
-                background:rgba(0,0,0,.55);
-                backdrop-filter:blur(3px);
+                background:rgba(7,8,20,0.78);
+                backdrop-filter:blur(20px) saturate(160%);
+                -webkit-backdrop-filter:blur(20px) saturate(160%);
             }
 
             .planning-preview-box {
                 position:relative;
                 z-index:2;
                 width:min(900px,94vw);
-                max-height:92vh;
+                max-height:90vh;
                 overflow:auto;
-                background:#fff;
-                border-radius:16px;
-                box-shadow:0 20px 70px rgba(0,0,0,.25);
+                background:rgba(15,17,35,0.94);
+                backdrop-filter:blur(40px);
+                -webkit-backdrop-filter:blur(40px);
+                border:1px solid rgba(255,255,255,0.12);
+                border-radius:24px;
+                box-shadow:0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
+                color:#f8fafc;
+                scrollbar-width:thin;
+                scrollbar-color:rgba(255,255,255,0.15) transparent;
+                animation:modalSpring 0.35s cubic-bezier(0.34,1.56,0.64,1);
+            }
+
+            @keyframes modalSpring {
+                from { opacity:0; transform:scale(0.92) translateY(12px); }
+                to { opacity:1; transform:scale(1) translateY(0); }
             }
 
             .planning-preview-header {
@@ -3035,30 +3223,57 @@
                 align-items:center;
                 justify-content:space-between;
                 gap:15px;
-                padding:18px 22px;
-                background:#d71920;
-                color:#fff;
-                border-radius:16px 16px 0 0;
+                padding:22px 28px 18px;
+                background:linear-gradient(135deg, rgba(109,40,217,0.25) 0%, rgba(124,58,237,0.12) 50%, transparent 100%);
+                border-bottom:1px solid rgba(255,255,255,0.08);
+                border-radius:24px 24px 0 0;
+            }
+
+            .planning-preview-eyebrow {
+                color:#a78bfa;
+                font-weight:800;
+                letter-spacing:1px;
+                font-size:11px;
+                text-transform:uppercase;
+                margin-bottom:4px;
             }
 
             .planning-preview-header h2 {
                 margin:0;
-                font-size:18px;
+                font-size:20px;
+                font-weight:800;
+                color:#ffffff;
+                letter-spacing:-0.3px;
             }
 
             .planning-preview-close {
-                border:0;
-                background:transparent;
-                color:#fff;
-                font-size:26px;
+                width:36px;
+                height:36px;
+                border-radius:10px;
+                border:1px solid rgba(255,255,255,0.12);
+                background:rgba(255,255,255,0.06);
+                color:rgba(255,255,255,0.7);
+                font-size:20px;
+                display:flex;
+                align-items:center;
+                justify-content:center;
                 cursor:pointer;
+                transition:all 0.2s ease;
+                line-height:1;
+            }
+
+            .planning-preview-close:hover {
+                background:rgba(244,63,94,0.2);
+                border-color:rgba(244,63,94,0.5);
+                color:#f43f5e;
+                transform:rotate(90deg);
             }
 
             .planning-preview-form {
                 display:grid;
                 grid-template-columns:repeat(3,1fr);
                 gap:16px;
-                padding:20px;
+                padding:24px 28px;
             }
 
             .planning-preview-field {
@@ -3073,9 +3288,11 @@
             }
 
             .planning-preview-field label {
-                font-size:12px;
+                font-size:11px;
                 font-weight:700;
-                color:#555;
+                color:rgba(255,255,255,0.55);
+                text-transform:uppercase;
+                letter-spacing:0.5px;
             }
 
             .planning-preview-field input,
@@ -3083,20 +3300,39 @@
             .planning-preview-field textarea {
                 width:100%;
                 box-sizing:border-box;
-                padding:10px 11px;
-                border:1px solid #ddd;
-                border-radius:8px;
+                padding:11px 14px;
+                background:rgba(255,255,255,0.05);
+                border:1px solid rgba(255,255,255,0.1);
+                border-radius:12px;
                 outline:none;
+                color:#f8fafc;
+                font-size:13px;
+                font-family:'Plus Jakarta Sans',sans-serif;
+                transition:border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
             }
 
-            .planning-preview-field input:focus,
+            .planning-preview-field input[readonly] {
+                background:rgba(255,255,255,0.03);
+                color:rgba(255,255,255,0.45);
+                border-color:rgba(255,255,255,0.06);
+                cursor:default;
+            }
+
+            .planning-preview-field select option {
+                background:#0f1123;
+                color:#ffffff;
+            }
+
+            .planning-preview-field input:not([readonly]):focus,
             .planning-preview-field select:focus,
             .planning-preview-field textarea:focus {
-                border-color:#d71920;
+                border-color:rgba(167,139,250,0.6);
+                background:rgba(139,92,246,0.12);
+                box-shadow:0 0 0 3px rgba(139,92,246,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
             }
 
             .planning-preview-section {
-                padding:0 20px 20px;
+                padding:0 28px 20px;
             }
 
             .planning-preview-section-header {
@@ -3104,51 +3340,91 @@
                 align-items:center;
                 justify-content:space-between;
                 gap:12px;
-                margin-bottom:12px;
+                margin-bottom:14px;
+                padding-top:10px;
+                border-top:1px solid rgba(255,255,255,0.07);
             }
 
             .planning-preview-section-header h3 {
                 margin:0;
-                font-size:15px;
+                font-size:14px;
+                font-weight:700;
+                color:rgba(255,255,255,0.88);
             }
 
             .planning-add-label {
-                color:#73777c;
+                display:inline-flex;
+                align-items:center;
+                gap:5px;
+                color:#a78bfa;
                 font-size:12px;
                 font-weight:700;
+                cursor:pointer;
+                padding:6px 12px;
+                border-radius:8px;
+                border:1px solid rgba(167,139,250,0.25);
+                background:rgba(139,92,246,0.08);
+                transition:all 0.2s ease;
+            }
+
+            .planning-add-label:hover {
+                background:rgba(139,92,246,0.18);
+                border-color:rgba(167,139,250,0.45);
             }
 
             .planning-preview-search {
                 position:relative;
-                margin-bottom:10px;
+                margin-bottom:12px;
             }
 
             .planning-preview-search input {
                 width:100%;
                 box-sizing:border-box;
-                padding:11px 13px;
-                border:1px solid #ddd;
-                border-radius:8px;
+                padding:11px 14px 11px 40px;
+                background:rgba(255,255,255,0.06);
+                border:1px solid rgba(255,255,255,0.1);
+                border-radius:12px;
                 outline:none;
+                color:rgba(255,255,255,0.85);
+                font-size:13px;
+                font-family:'Plus Jakarta Sans',sans-serif;
+                background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
+                background-repeat:no-repeat;
+                background-position:13px center;
+                transition:border-color 0.2s ease, background-color 0.2s ease;
+            }
+
+            .planning-preview-search input::placeholder { color:rgba(255,255,255,0.35); }
+
+            .planning-preview-search input:focus {
+                border-color:rgba(167,139,250,0.5);
+                background-color:rgba(139,92,246,0.08);
             }
 
             .planning-preview-search-result {
                 position:absolute;
                 left:0;
                 right:0;
-                top:calc(100% + 4px);
+                top:calc(100% + 6px);
                 z-index:20;
                 display:none;
                 max-height:220px;
                 overflow:auto;
-                background:#fff;
-                border:1px solid #ddd;
-                border-radius:8px;
-                box-shadow:0 12px 30px rgba(0,0,0,.15);
+                background:rgba(15,17,35,0.97);
+                backdrop-filter:blur(20px);
+                border:1px solid rgba(255,255,255,0.12);
+                border-radius:14px;
+                box-shadow:0 16px 40px rgba(0,0,0,0.6);
             }
 
             .planning-preview-search-result.active {
                 display:block;
+                animation:dropIn 0.2s ease;
+            }
+
+            @keyframes dropIn {
+                from { opacity:0; transform:translateY(-8px); }
+                to { opacity:1; transform:translateY(0); }
             }
 
             .planning-preview-search-item {
@@ -3156,145 +3432,219 @@
                 align-items:center;
                 justify-content:space-between;
                 gap:10px;
-                padding:10px 12px;
-                border-bottom:1px solid #eee;
+                padding:10px 14px;
+                border-bottom:1px solid rgba(255,255,255,0.05);
+                transition:background 0.15s ease;
             }
 
-            .planning-preview-search-item:hover {
-                background:#fafafa;
-            }
+            .planning-preview-search-item:hover { background:rgba(139,92,246,0.14); }
 
-            .planning-preview-search-info {
-                min-width:0;
-                flex:1;
-            }
+            .planning-preview-search-info { min-width:0; flex:1; }
 
             .planning-preview-search-name {
                 font-weight:700;
                 font-size:13px;
+                color:rgba(255,255,255,0.9);
             }
 
             .planning-preview-search-id {
-                color:#888;
+                color:rgba(255,255,255,0.4);
                 font-size:11px;
-                margin-top:3px;
+                margin-top:2px;
             }
 
             .planning-preview-search-add {
-                border:0;
-                background:#d71920;
-                color:#fff;
-                padding:7px 9px;
-                border-radius:7px;
+                border:1px solid rgba(167,139,250,0.4);
+                background:rgba(139,92,246,0.2);
+                color:#a78bfa;
+                padding:6px 12px;
+                border-radius:8px;
+                font-size:12px;
+                font-weight:700;
                 cursor:pointer;
+                transition:all 0.2s ease;
+                white-space:nowrap;
+            }
+
+            .planning-preview-search-add:hover {
+                background:rgba(139,92,246,0.4);
+                border-color:rgba(167,139,250,0.6);
             }
 
             .planning-preview-search-empty {
-                padding:15px;
+                padding:20px;
                 text-align:center;
-                color:#888;
+                color:rgba(255,255,255,0.35);
                 font-size:13px;
             }
 
             .planning-preview-karyawan-list {
                 display:flex;
                 flex-direction:column;
-                gap:7px;
+                gap:8px;
                 max-height:300px;
                 overflow:auto;
+                padding-right:4px;
+                scrollbar-width:thin;
+                scrollbar-color:rgba(255,255,255,0.1) transparent;
             }
 
             .planning-preview-karyawan-row {
                 display:grid;
-                grid-template-columns:38px 1fr 180px 42px;
+                grid-template-columns:36px 1fr 160px 38px;
                 gap:8px;
                 align-items:center;
-                padding:8px;
-                border:1px solid #eee;
-                border-radius:8px;
-                background:#fafafa;
+                padding:10px 12px;
+                background:rgba(255,255,255,0.04);
+                border:1px solid rgba(255,255,255,0.08);
+                border-radius:12px;
+                transition:background 0.2s ease, border-color 0.2s ease;
+            }
+
+            .planning-preview-karyawan-row:hover {
+                background:rgba(139,92,246,0.08);
+                border-color:rgba(167,139,250,0.2);
             }
 
             .planning-preview-number {
                 text-align:center;
-                font-weight:700;
-                color:#777;
+                font-weight:800;
+                font-size:12px;
+                color:rgba(255,255,255,0.35);
+                width:28px;
+                height:28px;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                background:rgba(255,255,255,0.06);
+                border-radius:8px;
             }
 
             .planning-preview-karyawan-row input {
                 width:100%;
                 box-sizing:border-box;
-                padding:8px 9px;
-                border:1px solid #ddd;
-                border-radius:7px;
+                padding:8px 11px;
+                background:rgba(255,255,255,0.06);
+                border:1px solid rgba(255,255,255,0.08);
+                border-radius:9px;
                 outline:none;
+                color:rgba(255,255,255,0.85);
+                font-size:13px;
+                font-family:'Plus Jakarta Sans',sans-serif;
+                transition:border-color 0.2s ease, background 0.2s ease;
+            }
+
+            .planning-preview-karyawan-row input:focus {
+                border-color:rgba(167,139,250,0.4);
+                background:rgba(139,92,246,0.08);
             }
 
             .planning-btn-delete {
                 width:34px;
                 height:34px;
-                border:0;
-                border-radius:7px;
-                background:#fff0f1;
-                color:#d71920;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                border:1px solid rgba(244,63,94,0.3);
+                border-radius:9px;
+                background:rgba(244,63,94,0.1);
+                color:#f43f5e;
                 cursor:pointer;
+                font-size:16px;
+                transition:all 0.2s ease;
+            }
+
+            .planning-btn-delete:hover {
+                background:rgba(244,63,94,0.25);
+                border-color:rgba(244,63,94,0.5);
+                transform:scale(1.05);
             }
 
             .planning-preview-actions {
                 display:flex;
                 justify-content:flex-end;
-                gap:8px;
-                padding:0 20px 20px;
-            }
-
-            .planning-preview-actions button {
-                border:0;
-                padding:10px 16px;
-                border-radius:8px;
-                cursor:pointer;
+                align-items:center;
+                gap:10px;
+                padding:16px 28px 24px;
+                border-top:1px solid rgba(255,255,255,0.07);
             }
 
             .planning-preview-cancel {
-                background:#eee;
-                color:#333;
+                display:inline-flex;
+                align-items:center;
+                gap:7px;
+                border:1px solid rgba(255,255,255,0.15);
+                background:rgba(255,255,255,0.07);
+                backdrop-filter:blur(8px);
+                color:rgba(255,255,255,0.7);
+                padding:11px 20px;
+                border-radius:12px;
+                font-size:13px;
+                font-weight:600;
+                cursor:pointer;
+                font-family:'Plus Jakarta Sans',sans-serif;
+                transition:all 0.2s ease;
+            }
+
+            .planning-preview-cancel:hover {
+                background:rgba(255,255,255,0.12);
+                border-color:rgba(255,255,255,0.25);
+                color:#fff;
+                transform:translateY(-1px);
             }
 
             .planning-btn-save {
-                background:#d71920;
+                display:inline-flex;
+                align-items:center;
+                gap:8px;
+                border:1px solid rgba(167,139,250,0.5);
+                background:linear-gradient(135deg,#6d28d9 0%,#7c3aed 50%,#8b5cf6 100%);
                 color:#fff;
+                padding:11px 24px;
+                border-radius:12px;
+                font-size:13px;
+                font-weight:800;
+                cursor:pointer;
+                font-family:'Plus Jakarta Sans',sans-serif;
+                box-shadow:0 8px 24px rgba(109,40,217,0.35);
+                transition:all 0.25s ease;
+                position:relative;
+                overflow:hidden;
             }
 
+            .planning-btn-save::after {
+                content:'';
+                position:absolute;
+                inset:0;
+                background:linear-gradient(rgba(255,255,255,0.15),transparent);
+                opacity:0;
+                transition:opacity 0.3s ease;
+            }
+
+            .planning-btn-save:hover {
+                background:linear-gradient(135deg,#5b21b6 0%,#6d28d9 50%,#7c3aed 100%);
+                box-shadow:0 12px 32px rgba(109,40,217,0.5);
+                transform:translateY(-2px);
+            }
+
+            .planning-btn-save:hover::after { opacity:1; }
+            .planning-btn-save:active { transform:translateY(0); }
+
             @media(max-width:700px) {
-
-                .planning-preview-form {
-                    grid-template-columns:1fr;
-                }
-
-                .planning-preview-karyawan-row {
-                    grid-template-columns:32px 1fr 38px;
-                }
-
-                .preview-id-input {
-                    grid-column:2;
-                }
-
-                .planning-preview-actions {
-                    flex-direction:column;
-                }
-
-                .planning-preview-actions button {
-                    width:100%;
-                }
-
+                .planning-preview-form { grid-template-columns:1fr; padding:16px 18px; }
+                .planning-preview-section { padding:0 18px 16px; }
+                .planning-preview-header { padding:18px 20px 16px; }
+                .planning-preview-actions { padding:14px 18px 20px; flex-direction:column; }
+                .planning-preview-cancel,.planning-btn-save { width:100%; justify-content:center; }
+                .planning-preview-karyawan-row { grid-template-columns:32px 1fr 38px; }
+                .preview-id-input { grid-column:2; }
             }
         `;
 
         document.head.appendChild(style);
 
     }
-
-
-    /* =========================================================
+/* =========================================================
     CREATE PREVIEW MODAL
     ========================================================= */
 
@@ -4556,16 +4906,18 @@
                 );
             }
 
-            const previewSaved =
-                await cetakPlanningPNG(
-                    idPlanning,
-                    {
-                        download: false,
-                        savePreview: true,
-                        allowWhileSaving: true,
-                        silent: true
-                    }
-                );
+                        // Update preview non-blocking in background
+            cetakPlanningPNG(
+                idPlanning,
+                {
+                    download: false,
+                    savePreview: true,
+                    allowWhileSaving: true,
+                    silent: true
+                }
+            ).catch(function (e) {
+                console.warn("[Background Preview Update] Gagal:", e);
+            });
 
             renderPlanning();
 
@@ -4585,13 +4937,9 @@
             closePreviewPlanning();
 
             showPlanningToast(
-                previewSaved ? "success" : "warning",
-                previewSaved
-                    ? "Perubahan berhasil disimpan"
-                    : "Perubahan tersimpan, preview gagal dibuat",
-                previewSaved
-                    ? "Data planning, daftar karyawan, dan preview berhasil diperbarui."
-                    : "Data planning tersimpan, tetapi preview_url belum berhasil diperbarui."
+                "success",
+                "Perubahan Disimpan",
+                "Perubahan data planning berhasil disimpan!"
             );
 
         } catch (error) {
@@ -5133,7 +5481,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
        VALIDASI
     ========================================================= */
 
-    if (planningCRUDLoading && !allowWhileSaving) {
+    if (planningCRUDLoading && !allowWhileSaving && !silent) {
         return false;
     }
 
@@ -5146,6 +5494,49 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         return false;
     }
 
+    const idStr = String(idPlanning ?? "");
+    const cleanId = idStr.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+    // 1. Unduh instan jika blob preview sudah tersimpan di memori
+    const cachedBlob = planningPreviewBlobCache.get(idStr) || planningPreviewBlobCache.get(idPlanning);
+    if (shouldDownload && cachedBlob) {
+        triggerPlanningEvidenceDownload(cachedBlob, `SPL_${cleanId}.png`);
+        if (!silent && typeof showPlanningToast === "function") {
+            showPlanningToast("success", "Unduhan selesai", `SPL ${idPlanning} berhasil diunduh.`);
+        }
+        return true;
+    }
+
+    // 2. Unduh instan via preview_url yang sudah ada di database tanpa render ulang
+    const existingPreviewUrl = item.previewUrl || item.preview_url;
+    if (shouldDownload && existingPreviewUrl && typeof existingPreviewUrl === "string" && existingPreviewUrl.startsWith("http")) {
+        try {
+            if (!silent) showPlanningLoading("Mengunduh preview SPL...");
+            let fetchUrl = existingPreviewUrl;
+            const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+            if (existingPreviewUrl.includes(supabaseBase)) {
+                fetchUrl = existingPreviewUrl.replace(supabaseBase, window.location.origin + "/supabase");
+            }
+            const res = await fetch(fetchUrl, { cache: "force-cache" });
+            if (res.ok) {
+                const blob = await res.blob();
+                if (blob && blob.size > 0) {
+                    planningPreviewBlobCache.set(idPlanning, blob);
+                    planningPreviewBlobCache.set(idStr, blob);
+                    triggerPlanningEvidenceDownload(blob, `SPL_${cleanId}.png`);
+                    if (!silent && typeof showPlanningToast === "function") {
+                        showPlanningToast("success", "Unduhan selesai", `SPL ${idPlanning} berhasil diunduh.`);
+                    }
+                    return true;
+                }
+            }
+        } catch (fetchErr) {
+            console.warn("[Unduh SPL] Fallback ke render canvas:", fetchErr);
+        } finally {
+            if (!silent) hidePlanningLoading();
+        }
+    }
+
     if (typeof html2canvas === "undefined") {
         if (!silent) {
             alert("html2canvas belum termuat.");
@@ -5153,16 +5544,16 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         return false;
     }
 
-
     /* =========================================================
-       LOCK + LOADING
+       LOCK + LOADING (Hanya jika bukan background silent)
     ========================================================= */
 
-    planningCRUDLoading = true;
-
-    try {
-        showPlanningLoading("Menyiapkan PNG...");
-    } catch (e) {}
+    if (!silent) {
+        planningCRUDLoading = true;
+        try {
+            showPlanningLoading("Menyiapkan PNG...");
+        } catch (e) {}
+    }
 
 
     let exportContainer = null;
@@ -5954,7 +6345,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
                         <img
                             class="linfox-export-logo"
-                            src="Logo.png"
+                            src="${preloadedLogoDataUrl || 'Logo.png'}"
                             crossorigin="anonymous"
                             style="
                                 max-width:92px;
@@ -6832,9 +7223,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
            RENDER
         ===================================================== */
 
-        showPlanningLoading(
-            "Membuat gambar PNG..."
-        );
+        if (!silent) {
+            showPlanningLoading("Membuat gambar PNG...");
+        }
 
 
         await new Promise(
@@ -6863,7 +7254,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 await html2canvas(
                     exportContainer,
                     {
-                        scale:1.5,
+                        scale:1.0,
 
                         width:794,
 
@@ -6879,7 +7270,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
                         allowTaint:false,
 
-                        imageTimeout:5000,
+                        imageTimeout:1500,
 
                         logging:false,
 
@@ -6958,9 +7349,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
            BLOB
         ===================================================== */
 
-        showPlanningLoading(
-            "Menyiapkan file PNG..."
-        );
+        if (!silent) {
+            showPlanningLoading("Menyiapkan file PNG...");
+        }
 
 
         const blob =
@@ -6992,52 +7383,28 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
             );
 
 
-        const namaFile =
+                const namaFile =
             String(idPlanning)
                 .replace(
                     /[^a-zA-Z0-9_-]/g,
                     "_"
                 );
 
-        let previewSaved = !shouldSavePreview;
+        // Cache blob immediately
+        planningPreviewBlobCache.set(idPlanning, blob);
+
+        // 1. Download IMMEDIATELY without waiting for network upload!
+        if (shouldDownload) {
+            triggerPlanningEvidenceDownload(blob, `SPL_${namaFile}.png`);
+        }
+
+        // 2. Upload preview to Supabase asynchronously in background
+        let previewSaved = true;
         let previewError = null;
 
         if (shouldSavePreview) {
-            showPlanningLoading("Menyimpan preview ke Supabase...");
-
-            try {
-                await uploadPlanningPreview(idPlanning, blob);
-                previewSaved = true;
-            } catch (error) {
-                previewError = error;
-                console.error("[PREVIEW PNG] GAGAL DISIMPAN:", error);
-            }
-        }
-
-        if (shouldDownload) {
-            objectURL = URL.createObjectURL(blob);
-            downloadLink = document.createElement("a");
-
-            downloadLink.style.position = "fixed";
-            downloadLink.style.left = "-99999px";
-            downloadLink.style.top = "0";
-            downloadLink.style.width = "1px";
-            downloadLink.style.height = "1px";
-            downloadLink.style.opacity = "0";
-            downloadLink.href = objectURL;
-            downloadLink.download = `SPL_${namaFile}.png`;
-            document.body.appendChild(downloadLink);
-
-            await new Promise(function(resolve) {
-                requestAnimationFrame(function() {
-                    try {
-                        downloadLink.click();
-                    }
-                    catch (e) {
-                        console.error("[PNG] Download error:", e);
-                    }
-                    setTimeout(resolve, 500);
-                });
+            uploadPlanningPreview(idPlanning, blob).catch(function (error) {
+                console.warn("[PREVIEW PNG] Upload background gagal:", error);
             });
         }
 
@@ -7155,27 +7522,16 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         catch (e) {}
 
 
-        try {
-
-            setTimeout(
-                function() {
-
+        if (!silent) {
+            try {
+                setTimeout(function() {
                     try {
                         hidePlanningLoading();
-                    }
-
-                    catch (e) {}
-
-                },
-                300
-            );
-
+                    } catch (e) {}
+                }, 150);
+            } catch (e) {}
+            planningCRUDLoading = previousLoadingState;
         }
-
-        catch (e) {}
-
-
-        planningCRUDLoading = previousLoadingState;
 
     }
 
@@ -7455,23 +7811,27 @@ function initPlanningFilters() {
 }
 
     /* =========================================================
-    DATABASE READY
+    DATABASE READY & GLOBAL EXPORTS
     ========================================================= */
 
-    document.addEventListener(
-        "databaseReady",
-        function () {
-
+    function syncAndRenderPlanning() {
+        if (typeof renderPlanning === "function") {
             renderPlanning();
-
-            if (
-                typeof updateKaryawanDropdown ===
-                "function"
-            ) {
-
-                updateKaryawanDropdown();
-
-            }
-
         }
-    );
+        if (typeof updateKaryawanDropdown === "function") {
+            updateKaryawanDropdown();
+        }
+    }
+
+    window.renderPlanning = renderPlanning;
+    if (typeof openPlanningModal === "function") {
+        window.openPlanningModal = openPlanningModal;
+    }
+
+    document.addEventListener("databaseReady", syncAndRenderPlanning);
+
+    if (typeof isDatabaseReady === "function" && isDatabaseReady()) {
+        syncAndRenderPlanning();
+    } else if (Array.isArray(window.planning) && window.planning.length > 0) {
+        syncAndRenderPlanning();
+    }

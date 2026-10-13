@@ -2571,6 +2571,8 @@
             );
         }
 
+        const cekLemburBlobCache = new Map();
+
         function openPlanningFile(url, title, fileName) {
             const safeUrl = String(url || "").trim();
 
@@ -2594,8 +2596,17 @@
                 photoBody.innerHTML = `<iframe src="${escapeHTML(safeUrl)}" title="${escapeHTML(title || "Bukti rencana")}"></iframe>`;
             }
 
+            if (!cekLemburBlobCache.has(safeUrl) && (safeUrl.startsWith("http://") || safeUrl.startsWith("https://"))) {
+                let prefetchUrl = safeUrl;
+                const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+                if (safeUrl.includes(supabaseBase)) prefetchUrl = safeUrl.replace(supabaseBase, window.location.origin + "/supabase");
+                fetch(prefetchUrl, { cache: "force-cache" }).then(r => r.ok ? r.blob() : null).then(b => { if (b) cekLemburBlobCache.set(safeUrl, b); }).catch(() => {});
+            }
+
             photoModal.classList.add("active");
         }
+
+        
 
         async function downloadPlanningFileFromButton(button) {
             const url = String(button.dataset.url || "").trim();
@@ -2605,38 +2616,77 @@
                 return;
             }
 
+            if (cekLemburBlobCache.has(url)) {
+                const cachedBlob = cekLemburBlobCache.get(url);
+                const objectUrl = URL.createObjectURL(cachedBlob);
+                const link = document.createElement("a");
+                link.href = objectUrl;
+                link.download = fileName;
+                link.style.display = "none";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+                return;
+            }
+
             const originalText = button.textContent;
             button.disabled = true;
             button.textContent = "Mengunduh...";
 
             try {
                 let blob = null;
-                const storageMarker = "/storage/v1/object/public/planning-bukti/";
-                const markerIndex = url.indexOf(storageMarker);
 
-                if (markerIndex !== -1 && supabaseClient) {
-                    const storagePath = decodeURIComponent(
-                        url.slice(markerIndex + storageMarker.length).split("?")[0]
-                    );
-                    const result = await supabaseClient.storage
-                        .from("planning-bukti")
-                        .download(storagePath);
+                try {
+                    let fetchUrl = url;
+                    const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+                    if (typeof url === "string" && url.includes(supabaseBase)) {
+                        fetchUrl = url.replace(supabaseBase, window.location.origin + "/supabase");
+                    }
+                    const resp = await fetch(fetchUrl, { cache: "force-cache" });
+                    if (resp.ok) {
+                        blob = await resp.blob();
+                    } else if (fetchUrl !== url) {
+                        const directResp = await fetch(url, { cache: "force-cache" });
+                        if (directResp.ok) blob = await directResp.blob();
+                    }
+                } catch (_) {
+                    try {
+                        const directResp = await fetch(url, { cache: "force-cache" });
+                        if (directResp.ok) blob = await directResp.blob();
+                    } catch (_) {}
+                }
 
-                    if (result.error) {
-                        throw result.error;
+                if (!blob) {
+                    const storageMarker = "/storage/v1/object/public/planning-bukti/";
+                    const markerIndex = url.indexOf(storageMarker);
+
+                    if (markerIndex !== -1 && supabaseClient) {
+                        const storagePath = decodeURIComponent(
+                            url.slice(markerIndex + storageMarker.length).split("?")[0]
+                        );
+                        const result = await supabaseClient.storage
+                            .from("planning-bukti")
+                            .download(storagePath);
+
+                        if (result.error) {
+                            throw result.error;
+                        }
+                        blob = result.data;
+                    } else {
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            throw new Error(`Berkas gagal diambil (${response.status}).`);
+                        }
+                        blob = await response.blob();
                     }
-                    blob = result.data;
-                } else {
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`Berkas gagal diambil (${response.status}).`);
-                    }
-                    blob = await response.blob();
                 }
 
                 if (!(blob instanceof Blob) || blob.size === 0) {
                     throw new Error("Berkas kosong atau tidak dapat dibaca.");
                 }
+
+                cekLemburBlobCache.set(url, blob);
 
                 const objectUrl = URL.createObjectURL(blob);
                 const link = document.createElement("a");
