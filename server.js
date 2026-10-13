@@ -11,8 +11,10 @@ if (typeof process.loadEnvFile === "function") {
 }
 
 const port = Number(process.env.PORT || 3000);
-const supabaseUrl = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
-const supabaseAnonKey = String(process.env.SUPABASE_ANON_KEY || "");
+const defaultSupabaseUrl = "https://msthucqijrjmmntsdscm.supabase.co";
+const defaultSupabaseAnonKey = "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+const supabaseUrl = String(process.env.SUPABASE_URL || defaultSupabaseUrl).replace(/\/$/, "");
+const supabaseAnonKey = String(process.env.SUPABASE_ANON_KEY || defaultSupabaseAnonKey);
 const proxyPrefix = "/supabase";
 const publicRoot = __dirname;
 

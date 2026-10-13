@@ -10,6 +10,9 @@
    KONFIGURASI SUPABASE
 ===================================================== */
 
+const DEFAULT_SUPABASE_URL = "https://msthucqijrjmmntsdscm.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+
 const runtimeEnv =
     window.PlanburEnv ||
     window.__PLANBUR_ENV__ ||
@@ -17,12 +20,12 @@ const runtimeEnv =
 
 const SUPABASE_URL =
     String(
-        runtimeEnv.SUPABASE_URL || ""
+        runtimeEnv.SUPABASE_URL || DEFAULT_SUPABASE_URL
     ).replace(/\/$/, "");
 
 const SUPABASE_ANON_KEY =
     String(
-        runtimeEnv.SUPABASE_ANON_KEY || ""
+        runtimeEnv.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY
     ).trim();
 
 

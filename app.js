@@ -3743,7 +3743,7 @@ function enhanceButtonIcons(root = document) {
         [/cetak/i, "printer"],
         [/masuk/i, "log-in"],
         [/cari/i, "search"],
-        [/saring|filter/i, "funnel"],
+        [/saring|filter/i, "filter"],
         [/atur ulang|reset/i, "rotate-ccw"],
         [/pilih semua/i, "list-checks"],
         [/lepas penalti/i, "shield-check"],

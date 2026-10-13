@@ -1986,9 +1986,12 @@
     <!-- SCRIPT (Logika & Integrasi tetap dipertahankan utuh) -->
  <script src="env.js"></script>
 <script>
+    const DEFAULT_SUPABASE_URL = "https://msthucqijrjmmntsdscm.supabase.co";
+    const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+
     const runtimeEnv = window.PlanburEnv || window.__PLANBUR_ENV__ || {};
-    const SUPABASE_URL = String(runtimeEnv.SUPABASE_URL || "").replace(/\/$/, "");
-    const SUPABASE_ANON_KEY = String(runtimeEnv.SUPABASE_ANON_KEY || "").trim();
+    const SUPABASE_URL = String(runtimeEnv.SUPABASE_URL || DEFAULT_SUPABASE_URL).replace(/\/$/, "");
+    const SUPABASE_ANON_KEY = String(runtimeEnv.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY).trim();
 
     let supabaseClient = null;
     let planningBarChart = null;
@@ -2598,9 +2601,11 @@
 
             if (!cekLemburBlobCache.has(safeUrl) && (safeUrl.startsWith("http://") || safeUrl.startsWith("https://"))) {
                 let prefetchUrl = safeUrl;
-                const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+                const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || window.PlanburEnv?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+                const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+                const fetchHeaders = (supabaseKey && (safeUrl.includes("supabase.co") || prefetchUrl.includes("/supabase"))) ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey } : {};
                 if (safeUrl.includes(supabaseBase)) prefetchUrl = safeUrl.replace(supabaseBase, window.location.origin + "/supabase");
-                fetch(prefetchUrl, { cache: "force-cache" }).then(r => r.ok ? r.blob() : null).then(b => { if (b) cekLemburBlobCache.set(safeUrl, b); }).catch(() => {});
+                fetch(prefetchUrl, { cache: "force-cache", headers: fetchHeaders }).then(r => r.ok ? r.blob() : null).then(b => { if (b) cekLemburBlobCache.set(safeUrl, b); }).catch(() => {});
             }
 
             photoModal.classList.add("active");
@@ -2636,23 +2641,26 @@
 
             try {
                 let blob = null;
-
                 try {
                     let fetchUrl = url;
-                    const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+                    const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || window.PlanburEnv?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+                    const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+                    const fetchHeaders = (supabaseKey && (url.includes("supabase.co") || fetchUrl.includes("/supabase"))) ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey } : {};
                     if (typeof url === "string" && url.includes(supabaseBase)) {
                         fetchUrl = url.replace(supabaseBase, window.location.origin + "/supabase");
                     }
-                    const resp = await fetch(fetchUrl, { cache: "force-cache" });
+                    const resp = await fetch(fetchUrl, { cache: "force-cache", headers: fetchHeaders });
                     if (resp.ok) {
                         blob = await resp.blob();
                     } else if (fetchUrl !== url) {
-                        const directResp = await fetch(url, { cache: "force-cache" });
+                        const directResp = await fetch(url, { cache: "force-cache", headers: fetchHeaders });
                         if (directResp.ok) blob = await directResp.blob();
                     }
                 } catch (_) {
                     try {
-                        const directResp = await fetch(url, { cache: "force-cache" });
+                        const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+                        const fetchHeaders = (supabaseKey && url.includes("supabase.co")) ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey } : {};
+                        const directResp = await fetch(url, { cache: "force-cache", headers: fetchHeaders });
                         if (directResp.ok) blob = await directResp.blob();
                     } catch (_) {}
                 }
@@ -2674,7 +2682,9 @@
                         }
                         blob = result.data;
                     } else {
-                        const response = await fetch(url);
+                        const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+                        const fetchHeaders = (supabaseKey && url.includes("supabase.co")) ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey } : {};
+                        const response = await fetch(url, { headers: fetchHeaders });
                         if (!response.ok) {
                             throw new Error(`Berkas gagal diambil (${response.status}).`);
                         }

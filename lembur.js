@@ -400,15 +400,20 @@
             if (typeof urlOrData === "string" && (urlOrData.startsWith("http://") || urlOrData.startsWith("https://"))) {
                 try {
                     let fetchUrl = urlOrData;
-                    const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+                    const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || window.PlanburEnv?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+                    const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+                    const fetchHeaders = (supabaseKey && (urlOrData.includes("supabase.co") || fetchUrl.includes("/supabase")))
+                        ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey }
+                        : {};
+
                     if (urlOrData.includes(supabaseBase)) {
                         fetchUrl = urlOrData.replace(supabaseBase, window.location.origin + "/supabase");
                     }
-                    const response = await fetch(fetchUrl, { cache: "force-cache" });
+                    const response = await fetch(fetchUrl, { cache: "force-cache", headers: fetchHeaders });
                     if (response.ok) {
                         fileBlob = await response.blob();
                     } else if (fetchUrl !== urlOrData) {
-                        const directResp = await fetch(urlOrData, { cache: "force-cache" });
+                        const directResp = await fetch(urlOrData, { cache: "force-cache", headers: fetchHeaders });
                         if (directResp.ok) fileBlob = await directResp.blob();
                     }
                 } catch (_) {}
@@ -424,7 +429,11 @@
                     if (error) throw error;
                     fileBlob = data;
                 } else if (typeof urlOrData === "string") {
-                    const response = await fetch(urlOrData);
+                    const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+                    const fetchHeaders = (supabaseKey && urlOrData.includes("supabase.co"))
+                        ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey }
+                        : {};
+                    const response = await fetch(urlOrData, { headers: fetchHeaders });
                     if (!response.ok) {
                         throw new Error(`Gagal mengambil bukti (${response.status}).`);
                     }
@@ -5513,11 +5522,16 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         try {
             if (!silent) showPlanningLoading("Mengunduh preview SPL...");
             let fetchUrl = existingPreviewUrl;
-            const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+            const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || window.PlanburEnv?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
+            const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
+            const fetchHeaders = (supabaseKey && (existingPreviewUrl.includes("supabase.co") || fetchUrl.includes("/supabase")))
+                ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey }
+                : {};
+
             if (existingPreviewUrl.includes(supabaseBase)) {
                 fetchUrl = existingPreviewUrl.replace(supabaseBase, window.location.origin + "/supabase");
             }
-            const res = await fetch(fetchUrl, { cache: "force-cache" });
+            const res = await fetch(fetchUrl, { cache: "force-cache", headers: fetchHeaders });
             if (res.ok) {
                 const blob = await res.blob();
                 if (blob && blob.size > 0) {
