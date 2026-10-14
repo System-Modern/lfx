@@ -56,7 +56,7 @@
 
     <link
         rel="stylesheet"
-        href="style.css?v=20261014-final"
+        href="style.css?v=20261014-v3"
     >
 
     <style>
@@ -1175,30 +1175,6 @@
 
                 </div>
 
-            </div>
-
-
-            <div id="karyawanBulkBar" class="karyawan-bulk-bar" style="display: none;">
-                <div class="bulk-info">
-                    <span class="bulk-count-badge" id="bulkSelectedCount">0</span>
-                    <span>karyawan dipilih untuk aksi massal</span>
-                </div>
-                <div class="bulk-actions">
-                    <button type="button" class="btn-bulk-delete" id="btnBulkDeleteKaryawan" onclick="window.hapusKaryawanTerpilih()">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                        </svg>
-                        Hapus Karyawan Terpilih
-                    </button>
-                    <button type="button" class="btn-bulk-cancel" onclick="window.batalPilihKaryawan()">
-                        Batal
-                    </button>
-                </div>
-            </div>
-
             <div class="table-wrapper">
 
                 <table>
@@ -1206,10 +1182,6 @@
                     <thead>
 
                         <tr>
-
-                            <th style="width: 44px; text-align: center;">
-                                <input type="checkbox" id="selectAllKaryawan" title="Pilih Semua Karyawan" style="cursor: pointer; width: 17px; height: 17px; accent-color: #e11d48;">
-                            </th>
 
                             <th>
                                 No
@@ -1445,7 +1417,7 @@
 
         <div class="card">
 
-            <div class="card-header">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
 
                 <div>
 
@@ -1460,13 +1432,46 @@
                 </div>
 
 
-                <div class="search-box">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
 
-                    <input
-                        type="text"
-                        id="searchKaryawan"
-                        placeholder="Cari ID, nama, tgl lahir..."
+                    <!-- TOMBOL HAPUS KARYAWAN DI HEADER DIATAS TABEL -->
+                    <button
+                        type="button"
+                        id="btnHapusKaryawanHeader"
+                        class="btn-hapus-bulk-header"
+                        onclick="window.hapusKaryawanTerpilih()"
+                        title="Hapus karyawan yang dipilih dengan ceklis"
                     >
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                        <span id="labelHapusKaryawanHeader">Hapus Karyawan</span>
+                        <span id="badgeHapusKaryawanCount" class="badge-count-hidden">0</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        id="btnBatalPilihHeader"
+                        class="btn-batal-bulk-header"
+                        onclick="window.batalPilihKaryawan()"
+                        style="display: none;"
+                        title="Batalkan semua pilihan centang"
+                    >
+                        Batal
+                    </button>
+
+                    <div class="search-box">
+
+                        <input
+                            type="text"
+                            id="searchKaryawan"
+                            placeholder="Cari ID, nama, tgl lahir..."
+                        >
+
+                    </div>
 
                 </div>
 
@@ -1477,7 +1482,7 @@
             <div id="karyawanBulkBar" class="karyawan-bulk-bar" style="display: none;">
                 <div class="bulk-info">
                     <span class="bulk-count-badge" id="bulkSelectedCount">0</span>
-                    <span>karyawan dipilih</span>
+                    <span>karyawan dipilih untuk dihapus massal</span>
                 </div>
                 <div class="bulk-actions">
                     <button type="button" class="btn-bulk-delete" id="btnBulkDeleteKaryawan" onclick="window.hapusKaryawanTerpilih()">
@@ -1503,17 +1508,20 @@
 
                         <tr>
 
-                            <th style="width: 46px; text-align: center;">
-                                <input
-                                    type="checkbox"
-                                    id="selectAllKaryawan"
-                                    title="Pilih Semua Karyawan"
-                                    style="cursor: pointer; width: 18px; height: 18px; accent-color: #e11d48;"
-                                >
+                            <th class="th-no" style="width: 55px; text-align: center;">
+                                No
                             </th>
 
-                            <th>
-                                No
+                            <th class="th-pilih" style="width: 80px; text-align: center;">
+                                <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
+                                    <input
+                                        type="checkbox"
+                                        id="selectAllKaryawan"
+                                        title="Pilih Semua Karyawan"
+                                        style="cursor: pointer; width: 17px; height: 17px; accent-color: #dc2626;"
+                                    >
+                                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Pilih</span>
+                                </div>
                             </th>
 
                             <th>
@@ -2655,12 +2663,12 @@
 <!-- =====================================================
      JAVASCRIPT
 ====================================================== -->
-<script src="env.js?v=20261014-final"></script>
+<script src="env.js?v=20261014-v3"></script>
 <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-<script src="database.js?v=20261014-final"></script>
-<script src="karyawan.js?v=20261014-final"></script>
-<script src="lembur.js?v=20261014-final"></script>
-<script src="app.js?v=20261014-final"></script>
+<script src="database.js?v=20261014-v3"></script>
+<script src="karyawan.js?v=20261014-v3"></script>
+<script src="lembur.js?v=20261014-v3"></script>
+<script src="app.js?v=20261014-v3"></script>
 
 
 </body>

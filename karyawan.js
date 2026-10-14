@@ -9,6 +9,10 @@ function updateBulkBarUI() {
     const bulkBar = document.getElementById("karyawanBulkBar");
     const countBadge = document.getElementById("bulkSelectedCount");
     const selectAllBox = document.getElementById("selectAllKaryawan");
+    const btnHeader = document.getElementById("btnHapusKaryawanHeader");
+    const labelHeader = document.getElementById("labelHapusKaryawanHeader");
+    const badgeHeader = document.getElementById("badgeHapusKaryawanCount");
+    const btnBatalHeader = document.getElementById("btnBatalPilihHeader");
     const count = selectedKaryawanIds.size;
 
     if (countBadge) {
@@ -17,6 +21,26 @@ function updateBulkBarUI() {
 
     if (bulkBar) {
         bulkBar.style.display = count > 0 ? "flex" : "none";
+    }
+
+    if (btnHeader) {
+        if (count > 0) {
+            btnHeader.classList.add("active-bulk");
+            if (labelHeader) labelHeader.textContent = `Hapus (${count}) Karyawan`;
+            if (badgeHeader) {
+                badgeHeader.textContent = String(count);
+                badgeHeader.style.display = "inline-flex";
+            }
+            if (btnBatalHeader) btnBatalHeader.style.display = "inline-flex";
+        } else {
+            btnHeader.classList.remove("active-bulk");
+            if (labelHeader) labelHeader.textContent = "Hapus Karyawan";
+            if (badgeHeader) {
+                badgeHeader.textContent = "0";
+                badgeHeader.style.display = "none";
+            }
+            if (btnBatalHeader) btnBatalHeader.style.display = "none";
+        }
     }
 
     if (selectAllBox) {
@@ -34,11 +58,30 @@ function updateBulkBarUI() {
     }
 }
 
+function onKaryawanCheckboxToggle(checkbox) {
+    if (!checkbox) return;
+    const id = normalizeId(checkbox.dataset.id);
+    const tr = checkbox.closest("tr");
+    if (checkbox.checked) {
+        selectedKaryawanIds.add(id);
+        if (tr) tr.classList.add("row-selected");
+    } else {
+        selectedKaryawanIds.delete(id);
+        if (tr) tr.classList.remove("row-selected");
+    }
+    updateBulkBarUI();
+}
+window.onKaryawanCheckboxToggle = onKaryawanCheckboxToggle;
+
 function batalPilihKaryawan() {
     selectedKaryawanIds.clear();
-    updateBulkBarUI();
     const checkboxes = document.querySelectorAll(".karyawan-check-item");
-    checkboxes.forEach(cb => { cb.checked = false; });
+    checkboxes.forEach(cb => {
+        cb.checked = false;
+        const tr = cb.closest("tr");
+        if (tr) tr.classList.remove("row-selected");
+    });
+    updateBulkBarUI();
 }
 window.batalPilihKaryawan = batalPilihKaryawan;
 
@@ -147,6 +190,11 @@ function initKaryawanBulkSelection() {
             const checkboxes = tbody ? tbody.querySelectorAll(".karyawan-check-item") : [];
             checkboxes.forEach(cb => {
                 cb.checked = isChecked;
+                const tr = cb.closest("tr");
+                if (tr) {
+                    if (isChecked) tr.classList.add("row-selected");
+                    else tr.classList.remove("row-selected");
+                }
             });
 
             updateBulkBarUI();
@@ -157,13 +205,7 @@ function initKaryawanBulkSelection() {
     if (tbody && !tbody.dataset.bulkListener) {
         tbody.addEventListener("change", function (e) {
             if (e.target && e.target.classList.contains("karyawan-check-item")) {
-                const id = normalizeId(e.target.dataset.id);
-                if (e.target.checked) {
-                    selectedKaryawanIds.add(id);
-                } else {
-                    selectedKaryawanIds.delete(id);
-                }
-                updateBulkBarUI();
+                onKaryawanCheckboxToggle(e.target);
             }
         });
         tbody.dataset.bulkListener = "true";
@@ -2372,22 +2414,26 @@ function renderKaryawan() {
                     "tr"
                 );
 
+            if (isChecked) {
+                row.classList.add("row-selected");
+            }
 
             row.innerHTML = `
 
-                <td style="text-align: center; width: 46px;">
+                <td class="td-no" style="text-align: center; width: 55px; font-weight: 600; color: #64748b;">
+                    ${index + 1}
+                </td>
+
+                <td class="td-pilih" style="text-align: center; width: 80px;">
                     <input
                         type="checkbox"
                         class="karyawan-check-item"
                         data-id="${escapeHTML(item.id)}"
                         data-nama="${escapeHTML(item.nama)}"
                         ${isChecked ? "checked" : ""}
-                        style="cursor: pointer; width: 18px; height: 18px; accent-color: #e11d48;"
+                        onchange="window.onKaryawanCheckboxToggle(this)"
+                        style="cursor: pointer; width: 18px; height: 18px; accent-color: #dc2626;"
                     >
-                </td>
-
-                <td>
-                    ${index + 1}
                 </td>
 
                 <td>
