@@ -115,6 +115,17 @@ http.createServer((request, response) => {
         return;
     }
 
+    if (request.url === proxyPrefix || request.url === proxyPrefix + "/") {
+        if (request.headers.accept && request.headers.accept.includes("text/html")) {
+            response.writeHead(302, { "Location": "/" });
+            response.end();
+            return;
+        }
+        response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ status: "ok", message: "Supabase proxy aktif." }));
+        return;
+    }
+
     if (request.url.startsWith(proxyPrefix + "/")) {
         proxy(request, response);
         return;
@@ -122,5 +133,11 @@ http.createServer((request, response) => {
 
     serveStatic(request, response);
 }).listen(port, () => {
-    console.log("Supabase proxy aktif di http://localhost:" + port + proxyPrefix);
+    console.log("\n=========================================");
+    console.log(" Planbur Server siap digunakan!");
+    console.log("=========================================");
+    console.log(" > Buka Web App   : http://localhost:" + port + "/");
+    console.log(" > Cek Lembur     : http://localhost:" + port + "/cek-lembur.html");
+    console.log(" > Proxy Supabase : http://localhost:" + port + proxyPrefix + "/");
+    console.log("=========================================\n");
 });

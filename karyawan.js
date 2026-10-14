@@ -1,3 +1,175 @@
+
+/* =====================================================
+   BULK SELECTION STATE
+===================================================== */
+const selectedKaryawanIds = new Set();
+window.selectedKaryawanIds = selectedKaryawanIds;
+
+function updateBulkBarUI() {
+    const bulkBar = document.getElementById("karyawanBulkBar");
+    const countBadge = document.getElementById("bulkSelectedCount");
+    const selectAllBox = document.getElementById("selectAllKaryawan");
+    const count = selectedKaryawanIds.size;
+
+    if (countBadge) {
+        countBadge.textContent = String(count);
+    }
+
+    if (bulkBar) {
+        bulkBar.style.display = count > 0 ? "flex" : "none";
+    }
+
+    if (selectAllBox) {
+        const dataKaryawan = getDataKaryawan();
+        if (dataKaryawan.length > 0 && count === dataKaryawan.length) {
+            selectAllBox.checked = true;
+            selectAllBox.indeterminate = false;
+        } else if (count > 0) {
+            selectAllBox.checked = false;
+            selectAllBox.indeterminate = true;
+        } else {
+            selectAllBox.checked = false;
+            selectAllBox.indeterminate = false;
+        }
+    }
+}
+
+function batalPilihKaryawan() {
+    selectedKaryawanIds.clear();
+    updateBulkBarUI();
+    const checkboxes = document.querySelectorAll(".karyawan-check-item");
+    checkboxes.forEach(cb => { cb.checked = false; });
+}
+window.batalPilihKaryawan = batalPilihKaryawan;
+
+async function hapusKaryawanTerpilih() {
+    if (crudProcessing) {
+        return;
+    }
+
+    const count = selectedKaryawanIds.size;
+    if (count === 0) {
+        showCRUDToast("info", "Pilih Karyawan", "Silakan beri ceklis pada minimal 1 karyawan untuk dihapus.");
+        return;
+    }
+
+    const dataKaryawan = getDataKaryawan();
+    const planningList = getDataPlanning();
+
+    let adaRiwayatPlanning = false;
+    for (const item of dataKaryawan) {
+        const id = normalizeId(item.id);
+        if (selectedKaryawanIds.has(id)) {
+            if (planningList.some(p => Array.isArray(p.karyawan) && p.karyawan.some(k => normalizeId(k.id) === id))) {
+                adaRiwayatPlanning = true;
+                break;
+            }
+        }
+    }
+
+    let pesan = `Hapus ${count} karyawan terpilih sekaligus?`;
+    if (adaRiwayatPlanning) {
+        pesan = `Hapus ${count} karyawan terpilih sekaligus?\n\nBeberapa karyawan yang dipilih sudah memiliki riwayat planning lembur.\nData riwayat planning lembur lama TIDAK akan hilang dan tetap aman sebagai arsip history.`;
+    }
+
+    if (!confirm(pesan)) {
+        return;
+    }
+
+    if (!startCRUDProcess("Menghapus Karyawan Terpilih", `Menghapus ${count} karyawan sekaligus secara cepat...`)) {
+        return;
+    }
+
+    try {
+        updateCRUDLoading(30, "Memproses data penghapusan massal...");
+
+        // Backup untuk rollback jika gagal
+        const backupKaryawan = [...dataKaryawan];
+
+        // Filter array in-memory
+        const sisaKaryawan = dataKaryawan.filter(item => !selectedKaryawanIds.has(normalizeId(item.id)));
+        window.karyawan = sisaKaryawan;
+
+        updateCRUDLoading(60, "Menyimpan ke database cloud...");
+        const berhasil = await saveKaryawanData();
+
+        if (!berhasil) {
+            window.karyawan = backupKaryawan;
+            throw new Error("Gagal menghapus beberapa data karyawan dari database.");
+        }
+
+        updateCRUDLoading(90, "Menyegarkan antarmuka...");
+        selectedKaryawanIds.clear();
+        updateBulkBarUI();
+        refreshKaryawanUI();
+        finishCRUDProcess();
+
+        showCRUDToast(
+            "success",
+            `${count} Karyawan Berhasil Dihapus`,
+            `Sebanyak ${count} karyawan telah dihapus sekaligus secara efisien. Riwayat planning tetap aman.`
+        );
+    } catch (error) {
+        cancelCRUDProcess();
+        showCRUDToast("error", "Penghapusan Massal Gagal", error?.message || "Terjadi kesalahan saat menghapus karyawan.");
+    }
+}
+window.hapusKaryawanTerpilih = hapusKaryawanTerpilih;
+
+function initKaryawanBulkSelection() {
+    const selectAllBox = document.getElementById("selectAllKaryawan");
+    const tbody = document.getElementById("tableKaryawan");
+
+    if (selectAllBox && !selectAllBox.dataset.listener) {
+        selectAllBox.addEventListener("change", function () {
+            const isChecked = this.checked;
+            const searchInput = document.getElementById("searchKaryawan");
+            const search = normalizeSearch(searchInput ? searchInput.value : "");
+            const allKaryawan = normalizeAllKaryawan();
+
+            const visibleKaryawan = search
+                ? allKaryawan.filter(item => {
+                    const id = normalizeSearch(item.id);
+                    const nama = normalizeSearch(item.nama);
+                    return id.includes(search) || nama.includes(search);
+                })
+                : allKaryawan;
+
+            visibleKaryawan.forEach(item => {
+                const id = normalizeId(item.id);
+                if (isChecked) {
+                    selectedKaryawanIds.add(id);
+                } else {
+                    selectedKaryawanIds.delete(id);
+                }
+            });
+
+            const checkboxes = tbody ? tbody.querySelectorAll(".karyawan-check-item") : [];
+            checkboxes.forEach(cb => {
+                cb.checked = isChecked;
+            });
+
+            updateBulkBarUI();
+        });
+        selectAllBox.dataset.listener = "true";
+    }
+
+    if (tbody && !tbody.dataset.bulkListener) {
+        tbody.addEventListener("change", function (e) {
+            if (e.target && e.target.classList.contains("karyawan-check-item")) {
+                const id = normalizeId(e.target.dataset.id);
+                if (e.target.checked) {
+                    selectedKaryawanIds.add(id);
+                } else {
+                    selectedKaryawanIds.delete(id);
+                }
+                updateBulkBarUI();
+            }
+        });
+        tbody.dataset.bulkListener = "true";
+    }
+}
+
 /* =====================================================
    KARYAWAN.JS — OPTIMIZED
    DATABASE KARYAWAN
@@ -1975,7 +2147,7 @@ function renderKaryawan() {
             <tr>
 
                 <td
-                    colspan="6"
+                    colspan="7"
                     class="empty-state-cell"
                 >
 
@@ -2193,6 +2365,8 @@ function renderKaryawan() {
                     `;
 
 
+            const isChecked = selectedKaryawanIds.has(normalizeId(item.id));
+
             const row =
                 document.createElement(
                     "tr"
@@ -2200,6 +2374,17 @@ function renderKaryawan() {
 
 
             row.innerHTML = `
+
+                <td style="text-align: center; width: 46px;">
+                    <input
+                        type="checkbox"
+                        class="karyawan-check-item"
+                        data-id="${escapeHTML(item.id)}"
+                        data-nama="${escapeHTML(item.nama)}"
+                        ${isChecked ? "checked" : ""}
+                        style="cursor: pointer; width: 18px; height: 18px; accent-color: #e11d48;"
+                    >
+                </td>
 
                 <td>
                     ${index + 1}
@@ -2273,6 +2458,8 @@ function renderKaryawan() {
 
 
     updateSummaryKaryawan();
+    updateBulkBarUI();
+    initKaryawanBulkSelection();
 
 }
 
@@ -3483,6 +3670,7 @@ function initializeKaryawan() {
     initModalEvents();
 
     updateSummaryKaryawan();
+    initKaryawanBulkSelection();
 
 }
 

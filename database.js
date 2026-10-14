@@ -1469,37 +1469,19 @@ async function simpanKaryawanSupabase() {
         if (
             deleted.length > 0
         ) {
+            const deletedIds = deleted
+                .map(item => normalizeId(item.id))
+                .filter(Boolean);
 
-            for (
-                const item of deleted
-            ) {
-
-                const id =
-                    normalizeId(
-                        item.id
-                    );
-
-                if (!id) {
-
-                    continue;
-
-                }
-
-
+            if (deletedIds.length > 0) {
                 try {
-                    const {
-                        error
-                    } =
-                        await supabaseClient
-                            .from("karyawan")
-                            .update({
-                                is_deleted: true,
-                                status: "NONAKTIF"
-                            })
-                            .eq(
-                                "kode_karyawan",
-                                id
-                            );
+                    let { error } = await supabaseClient
+                        .from("karyawan")
+                        .update({
+                            is_deleted: true,
+                            status: "NONAKTIF"
+                        })
+                        .in("kode_karyawan", deletedIds);
 
                     if (error) {
                         // Fallback jika kolom is_deleted belum ada
@@ -1508,17 +1490,22 @@ async function simpanKaryawanSupabase() {
                             .update({
                                 status: "NONAKTIF"
                             })
-                            .eq(
-                                "kode_karyawan",
-                                id
-                            );
+                            .in("kode_karyawan", deletedIds);
                     }
                 } catch (delError) {
-                    console.warn("Gagal soft-delete karyawan:", delError);
+                    console.warn("Gagal batch soft-delete karyawan, fallback ke individual:", delError);
+                    await Promise.all(
+                        deletedIds.map(async id => {
+                            try {
+                                await supabaseClient
+                                    .from("karyawan")
+                                    .update({ status: "NONAKTIF" })
+                                    .eq("kode_karyawan", id);
+                            } catch (_) {}
+                        })
+                    );
                 }
-
             }
-
         }
 
 
@@ -2058,13 +2045,56 @@ async function simpanPlanningSupabase() {
                     .filter(Boolean)
             );
 
+        /* =============================================
+           CEK PERUBAHAN PLANNING DARI SNAPSHOT
+           Jika tidak ada planning baru / berubah / terhapus,
+           langsung selesai tanpa query Supabase berulang!
+        ============================================= */
+        const oldPlanningMap = new Map();
+        for (const oldItem of databasePlanningSnapshot || []) {
+            const oldKode = String(oldItem.idPlanning ?? oldItem.id ?? "").trim();
+            if (oldKode) {
+                oldPlanningMap.set(oldKode, oldItem);
+            }
+        }
+
+        const deletedPlanning = (databasePlanningSnapshot || []).filter(oldItem => {
+            const oldId = String(oldItem.idPlanning ?? oldItem.id ?? "").trim();
+            return oldId && !currentPlanningIds.has(oldId);
+        });
+
+        const changedOrNewPlanning = currentPlanning.filter(item => {
+            const kode = String(item.idPlanning ?? item.id ?? "").trim();
+            if (!kode) return false;
+            const old = oldPlanningMap.get(kode);
+            if (!old) return true;
+
+            if (String(old.tanggal || "") !== String(item.tanggal || "") ||
+                String(old.jamMulai || "") !== String(item.jamMulai || "") ||
+                String(old.jamSelesai || "") !== String(item.jamSelesai || "") ||
+                Number(old.durasiMenit || 0) !== Number(item.durasiMenit || 0) ||
+                String(old.keterangan || "") !== String(item.keterangan || "") ||
+                String(old.jenisLembur || "") !== String(item.jenisLembur || "") ||
+                String(old.status || "") !== String(item.status || "") ||
+                String(old.previewUrl || old.preview_url || "") !== String(item.previewUrl || item.preview_url || "")) {
+                return true;
+            }
+
+            const oldKaryawanIds = Array.isArray(old.karyawan) ? old.karyawan.map(k => normalizeId(k.id)).sort().join(",") : "";
+            const currentKaryawanIds = Array.isArray(item.karyawan) ? item.karyawan.map(k => normalizeId(k.id)).sort().join(",") : "";
+            return oldKaryawanIds !== currentKaryawanIds;
+        });
+
+        if (changedOrNewPlanning.length === 0 && deletedPlanning.length === 0) {
+            return true;
+        }
 
         /* =============================================
-           PROSES PLANNING
+           PROSES PLANNING (HANYA YANG BARU / BERUBAH)
         ============================================= */
 
         for (
-            const item of currentPlanning
+            const item of changedOrNewPlanning
         ) {
 
             const kodePlanning =
@@ -2350,78 +2380,27 @@ async function simpanPlanningSupabase() {
         }
 
 
-        /* =============================================
-           HAPUS PLANNING YANG SUDAH DIHAPUS LOKAL
-        ============================================= */
-
-        const deletedPlanning =
-            databasePlanningSnapshot
-                .filter(oldItem => {
-
-                    const oldId =
-                        String(
-                            oldItem.idPlanning ??
-                            oldItem.id ??
-                            ""
-                        ).trim();
-
-
-                    return (
-                        oldId &&
-                        !currentPlanningIds.has(
-                            oldId
-                        )
-                    );
-
-                });
 
 
         /* =============================================
-           HAPUS DATABASE
+           HAPUS DATABASE (BATCH DELETE CEPAT)
         ============================================= */
 
-        for (
-            const item of deletedPlanning
-        ) {
+        if (deletedPlanning.length > 0) {
+            const deletedKodes = deletedPlanning
+                .map(item => String(item.idPlanning ?? item.id ?? "").trim())
+                .filter(Boolean);
 
-            const kode =
-                String(
-                    item.idPlanning ??
-                    item.id ??
-                    ""
-                ).trim();
-
-
-            if (!kode) {
-
-                continue;
-
-            }
-
-
-            const {
-                error
-            } =
-                await supabaseClient
-                    .from(
-                        "planning_lembur"
-                    )
+            if (deletedKodes.length > 0) {
+                const { error } = await supabaseClient
+                    .from("planning_lembur")
                     .delete()
-                    .eq(
-                        "kode_planning",
-                        kode
-                    );
+                    .in("kode_planning", deletedKodes);
 
-
-            if (error) {
-
-                console.error(
-                    "Gagal menghapus planning:",
-                    error
-                );
-
+                if (error) {
+                    console.error("Gagal batch delete planning:", error);
+                }
             }
-
         }
 
 

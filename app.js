@@ -3871,6 +3871,35 @@ console.log(
             ];
             dateEl.textContent = days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear();
         }
+
+        // Live Sidebar Widget Update
+        const sidebarClockEl = document.getElementById("sidebarLiveClock");
+        const sidebarShiftEl = document.getElementById("sidebarShiftText");
+        if (sidebarClockEl) {
+            const h = String(now.getHours()).padStart(2, "0");
+            const m = String(now.getMinutes()).padStart(2, "0");
+            const s = String(now.getSeconds()).padStart(2, "0");
+            sidebarClockEl.textContent = h + ":" + m + ":" + s + " WIB";
+        }
+        if (sidebarShiftEl) {
+            const hour = now.getHours();
+            if (hour >= 6 && hour < 14) {
+                sidebarShiftEl.textContent = "Shift 1 • 06:00 - 14:00";
+            } else if (hour >= 14 && hour < 22) {
+                sidebarShiftEl.textContent = "Shift 2 • 14:00 - 22:00";
+            } else {
+                sidebarShiftEl.textContent = "Shift 3 • 22:00 - 06:00";
+            }
+        }
+        const navPlan = document.getElementById("navPlanningCount");
+        if (navPlan && Array.isArray(window.planning)) {
+            navPlan.textContent = String(window.planning.length);
+        }
+        const navKar = document.getElementById("navKaryawanCount");
+        if (navKar && Array.isArray(window.karyawan)) {
+            const aktif = window.karyawan.filter(k => k.status !== "PENALTI" && !k.isDeleted).length;
+            navKar.textContent = String(aktif || window.karyawan.length);
+        }
     }
 
     window.triggerHelloInteractive = function () {

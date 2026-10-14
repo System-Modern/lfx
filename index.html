@@ -56,7 +56,7 @@
 
     <link
         rel="stylesheet"
-        href="style.css?v=20261011-3"
+        href="style.css?v=20261014-final"
     >
 
     <style>
@@ -347,7 +347,6 @@
 
     <div class="menu">
 
-
         <!-- =================================================
              DASHBOARD
         ================================================== -->
@@ -356,57 +355,19 @@
             type="button"
             class="menu-item active"
             onclick="showPage('dashboard', this)"
+            id="navBtnDashboard"
         >
-
             <span class="menu-icon">
-
-                <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                >
-
-                    <rect
-                        x="3"
-                        y="3"
-                        width="7"
-                        height="7"
-                        rx="1.5"
-                    ></rect>
-
-                    <rect
-                        x="14"
-                        y="3"
-                        width="7"
-                        height="7"
-                        rx="1.5"
-                    ></rect>
-
-                    <rect
-                        x="3"
-                        y="14"
-                        width="7"
-                        height="7"
-                        rx="1.5"
-                    ></rect>
-
-                    <rect
-                        x="14"
-                        y="14"
-                        width="7"
-                        height="7"
-                        rx="1.5"
-                    ></rect>
-
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                    <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                    <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
                 </svg>
-
             </span>
-
-            <span>
-                Dasbor
-            </span>
-
+            <span class="menu-text">Dasbor</span>
+            <span class="menu-badge-dot"></span>
         </button>
-
 
         <!-- =================================================
              KARYAWAN
@@ -416,45 +377,19 @@
             type="button"
             class="menu-item"
             onclick="showPage('karyawan', this)"
+            id="navBtnKaryawan"
         >
-
             <span class="menu-icon">
-
-                <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                >
-
-                    <circle
-                        cx="9"
-                        cy="8"
-                        r="3"
-                    ></circle>
-
-                    <path
-                        d="M3.5 19c.6-3.1 2.5-4.8 5.5-4.8s4.9 1.7 5.5 4.8"
-                    ></path>
-
-                    <circle
-                        cx="17"
-                        cy="9"
-                        r="2.3"
-                    ></circle>
-
-                    <path
-                        d="M15.2 14.8c2.5-.2 4.3 1.2 5.1 3.7"
-                    ></path>
-
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="9" cy="8" r="3"></circle>
+                    <path d="M3.5 19c.6-3.1 2.5-4.8 5.5-4.8s4.9 1.7 5.5 4.8"></path>
+                    <circle cx="17" cy="9" r="2.3"></circle>
+                    <path d="M15.2 14.8c2.5-.2 4.3 1.2 5.1 3.7"></path>
                 </svg>
-
             </span>
-
-            <span>
-                Karyawan
-            </span>
-
+            <span class="menu-text">Karyawan</span>
+            <span class="menu-counter" id="navKaryawanCount">-</span>
         </button>
-
 
         <!-- =================================================
              PLANNING
@@ -464,35 +399,17 @@
             type="button"
             class="menu-item"
             onclick="showPage('planning', this)"
+            id="navBtnPlanning"
         >
-
             <span class="menu-icon">
-
-                <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                >
-
-                    <circle
-                        cx="12"
-                        cy="12"
-                        r="8.5"
-                    ></circle>
-
-                    <path
-                        d="M12 7v5l3.5 2"
-                    ></path>
-
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="8.5"></circle>
+                    <path d="M12 7v5l3.5 2"></path>
                 </svg>
-
             </span>
-
-            <span>
-                Rencana Lembur
-            </span>
-
+            <span class="menu-text">Rencana Lembur</span>
+            <span class="menu-counter highlight" id="navPlanningCount">-</span>
         </button>
-
 
         <!-- =================================================
              LAPORAN
@@ -502,30 +419,51 @@
             type="button"
             class="menu-item"
             onclick="showPage('laporan', this)"
+            id="navBtnLaporan"
         >
-
             <span class="menu-icon">
-
-                <svg
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                >
-
+                <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M6 3.5h9l3 3V20.5H6z"></path>
-
                     <path d="M15 3.5v4h3M9 12h6M9 16h6"></path>
-
                 </svg>
-
             </span>
-
-            <span>
-                Laporan Riwayat
-            </span>
-
+            <span class="menu-text">Laporan Riwayat</span>
         </button>
 
+    </div>
 
+    <!-- =================================================
+         SIDEBAR FOOTER & OPERATIONAL WIDGET (ELEGANT)
+    ================================================== -->
+    <div class="sidebar-bottom-panel">
+        <div class="sidebar-status-card">
+            <div class="status-card-header">
+                <div class="live-status-pill">
+                    <span class="status-beacon"></span>
+                    <span class="status-beacon-glow"></span>
+                    <span>SISTEM AKTIF</span>
+                </div>
+                <span class="version-chip">v2.4</span>
+            </div>
+            <div class="status-card-body">
+                <div class="sidebar-clock-row">
+                    <div class="clock-icon">🕒</div>
+                    <div class="clock-details">
+                        <span class="sidebar-live-clock" id="sidebarLiveClock">--:--:-- WIB</span>
+                        <span class="sidebar-shift-text" id="sidebarShiftText">Shift Operasional</span>
+                    </div>
+                </div>
+                <div class="sidebar-sync-row">
+                    <span class="sync-icon">⚡</span>
+                    <span class="sync-text">Supabase Cloud Sync Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-brand-watermark">
+            <span class="watermark-accent"></span>
+            <span>LINFOX LOGISTICS ENTERPRISE</span>
+        </div>
     </div>
 
 </aside>
@@ -1240,6 +1178,27 @@
             </div>
 
 
+            <div id="karyawanBulkBar" class="karyawan-bulk-bar" style="display: none;">
+                <div class="bulk-info">
+                    <span class="bulk-count-badge" id="bulkSelectedCount">0</span>
+                    <span>karyawan dipilih untuk aksi massal</span>
+                </div>
+                <div class="bulk-actions">
+                    <button type="button" class="btn-bulk-delete" id="btnBulkDeleteKaryawan" onclick="window.hapusKaryawanTerpilih()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                        Hapus Karyawan Terpilih
+                    </button>
+                    <button type="button" class="btn-bulk-cancel" onclick="window.batalPilihKaryawan()">
+                        Batal
+                    </button>
+                </div>
+            </div>
+
             <div class="table-wrapper">
 
                 <table>
@@ -1247,6 +1206,10 @@
                     <thead>
 
                         <tr>
+
+                            <th style="width: 44px; text-align: center;">
+                                <input type="checkbox" id="selectAllKaryawan" title="Pilih Semua Karyawan" style="cursor: pointer; width: 17px; height: 17px; accent-color: #e11d48;">
+                            </th>
 
                             <th>
                                 No
@@ -1326,7 +1289,7 @@
             <div class="summary-card">
 
                 <div class="summary-icon active">
-                    👤
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                 </div>
 
                 <div class="summary-info">
@@ -1349,7 +1312,7 @@
             <div class="summary-card">
 
                 <div class="summary-icon penalty">
-                    ⚠️
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 </div>
 
                 <div class="summary-info">
@@ -1510,6 +1473,28 @@
             </div>
 
 
+            <!-- FLOATING BULK ACTIONS BAR -->
+            <div id="karyawanBulkBar" class="karyawan-bulk-bar" style="display: none;">
+                <div class="bulk-info">
+                    <span class="bulk-count-badge" id="bulkSelectedCount">0</span>
+                    <span>karyawan dipilih</span>
+                </div>
+                <div class="bulk-actions">
+                    <button type="button" class="btn-bulk-delete" id="btnBulkDeleteKaryawan" onclick="window.hapusKaryawanTerpilih()">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                        Hapus Karyawan Terpilih
+                    </button>
+                    <button type="button" class="btn-bulk-cancel" onclick="window.batalPilihKaryawan()">
+                        Batal
+                    </button>
+                </div>
+            </div>
+
             <div class="table-wrapper">
 
                 <table>
@@ -1517,6 +1502,15 @@
                     <thead>
 
                         <tr>
+
+                            <th style="width: 46px; text-align: center;">
+                                <input
+                                    type="checkbox"
+                                    id="selectAllKaryawan"
+                                    title="Pilih Semua Karyawan"
+                                    style="cursor: pointer; width: 18px; height: 18px; accent-color: #e11d48;"
+                                >
+                            </th>
 
                             <th>
                                 No
@@ -1571,6 +1565,67 @@
         class="page"
     >
 
+        <!-- SUMMARY PLANNING LEMBUR (ESTETIK & ELEGAN) -->
+        <div class="planning-summary-grid">
+            <div class="planning-stat-card">
+                <div class="planning-stat-icon card-blue">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                        <path d="M9 12h6m-6 4h4"></path>
+                    </svg>
+                </div>
+                <div class="planning-stat-content">
+                    <span class="planning-stat-label">Total Rencana</span>
+                    <strong class="planning-stat-value" id="planningTotalRencana">0</strong>
+                    <span class="planning-stat-desc">Rencana lembur terdata</span>
+                </div>
+            </div>
+            <div class="planning-stat-card">
+                <div class="planning-stat-icon card-yellow">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                </div>
+                <div class="planning-stat-content">
+                    <span class="planning-stat-label">Total Durasi</span>
+                    <strong class="planning-stat-value" id="planningTotalJam">0 Jam</strong>
+                    <span class="planning-stat-desc">Akumulasi durasi lembur</span>
+                </div>
+            </div>
+            <div class="planning-stat-card">
+                <div class="planning-stat-icon card-orange">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="18" x2="12" y2="12"></line>
+                        <line x1="9" y1="15" x2="15" y2="15"></line>
+                    </svg>
+                </div>
+                <div class="planning-stat-content">
+                    <span class="planning-stat-label">Menunggu Bukti TTD</span>
+                    <strong class="planning-stat-value" id="planningMenungguBukti">0</strong>
+                    <span class="planning-stat-desc">Belum upload bukti TTD</span>
+                </div>
+            </div>
+            <div class="planning-stat-card">
+                <div class="planning-stat-icon card-green">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <div class="planning-stat-content">
+                    <span class="planning-stat-label">Tenaga Kerja</span>
+                    <strong class="planning-stat-value" id="planningTotalKaryawan">0</strong>
+                    <span class="planning-stat-desc">Karyawan terjadwal</span>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
 
             <div class="card-header">
@@ -1599,6 +1654,26 @@
             </div>
 
 
+
+            <!-- QUICK FILTER CHIPS -->
+            <div class="planning-filter-chips">
+                <button type="button" class="planning-chip active" id="chipSemuaPlanning" onclick="window.setQuickFilterPlanning('all', this)">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    Semua Lembur
+                </button>
+                <button type="button" class="planning-chip" id="chipHariIniPlanning" onclick="window.setQuickFilterPlanning('today', this)">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    Hari Ini
+                </button>
+                <button type="button" class="planning-chip" id="chipPendingBuktiPlanning" onclick="window.setQuickFilterPlanning('need-evidence', this)">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    Belum Ada Bukti TTD <span class="planning-chip-badge" id="chipPendingCount">0</span>
+                </button>
+                <button type="button" class="planning-chip" id="chipSelesaiPlanning" onclick="window.setQuickFilterPlanning('completed', this)">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    Sudah Lengkap
+                </button>
+            </div>
 
             <!-- FILTER PLANNING -->
 
@@ -2363,6 +2438,10 @@
                             Tanggal Merah
                         </option>
 
+                        <option value="lembur_off">
+                            Lembur Off
+                        </option>
+
                     </select>
 
                 </div>
@@ -2576,12 +2655,12 @@
 <!-- =====================================================
      JAVASCRIPT
 ====================================================== -->
-<script src="env.js?v=20261013-1"></script>
+<script src="env.js?v=20261014-final"></script>
 <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-<script src="database.js?v=20261013-1"></script>
-<script src="karyawan.js?v=20261013-1"></script>
-<script src="lembur.js?v=20261013-1"></script>
-<script src="app.js?v=20261013-1"></script>
+<script src="database.js?v=20261014-final"></script>
+<script src="karyawan.js?v=20261014-final"></script>
+<script src="lembur.js?v=20261014-final"></script>
+<script src="app.js?v=20261014-final"></script>
 
 
 </body>

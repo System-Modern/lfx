@@ -2779,6 +2779,93 @@
     RENDER PLANNING
     ========================================================= */
 
+    
+    /* =========================================================
+       PLANNING QUICK FILTER & SUMMARY STAT CARDS
+    ========================================================= */
+    let currentPlanningQuickFilter = "all";
+
+    function updatePlanningSummaryCards() {
+        try {
+            const allPlanning = Array.isArray(planning) ? planning : [];
+            const totalRencana = allPlanning.length;
+
+            const elRencana = document.getElementById("planningTotalRencana");
+            if (elRencana) elRencana.textContent = String(totalRencana);
+
+            let totalMenit = 0;
+            allPlanning.forEach(item => {
+                totalMenit += Number(item.durasiMenit || 0);
+            });
+            const jam = Math.floor(totalMenit / 60);
+            const sisaMenit = totalMenit % 60;
+            const durasiText = sisaMenit > 0 ? `${jam}j ${sisaMenit}m` : `${jam} Jam`;
+            const elJam = document.getElementById("planningTotalJam");
+            if (elJam) elJam.textContent = durasiText;
+
+            let menungguBukti = 0;
+            allPlanning.forEach(item => {
+                const id = item.idPlanning || item.id;
+                // Hanya dianggap ada bukti jika bukti berkas/foto SPL TTD sudah ter-upload
+                const localEvidence = typeof getPlanningEvidence === "function" ? getPlanningEvidence(id) : null;
+                const hasLocal = Boolean(localEvidence && (localEvidence.name || localEvidence.data));
+                const hasRemote = Boolean(item.buktiUrl || item.bukti_url || item.buktiNama || item.bukti_nama);
+                const hasCache = planningEvidenceCache.has(String(id));
+                const hasUploadedTTD = hasLocal || hasRemote || hasCache;
+
+                if (!hasUploadedTTD) menungguBukti++;
+            });
+            const elMenunggu = document.getElementById("planningMenungguBukti");
+            if (elMenunggu) elMenunggu.textContent = String(menungguBukti);
+
+            const chipPending = document.getElementById("chipPendingCount");
+            if (chipPending) chipPending.textContent = String(menungguBukti);
+
+            const uniqueKaryawan = new Set();
+            allPlanning.forEach(item => {
+                if (Array.isArray(item.karyawan)) {
+                    item.karyawan.forEach(k => {
+                        const kid = k.id || k.idKaryawan || k.nik || k.nama;
+                        if (kid) uniqueKaryawan.add(String(kid).trim().toUpperCase());
+                    });
+                }
+            });
+            const elKaryawan = document.getElementById("planningTotalKaryawan");
+            if (elKaryawan) elKaryawan.textContent = String(uniqueKaryawan.size);
+
+            const navPlan = document.getElementById("navPlanningCount");
+            if (navPlan) navPlan.textContent = String(totalRencana);
+
+            const navKar = document.getElementById("navKaryawanCount");
+            if (navKar && typeof window.karyawan !== "undefined") {
+                const aktifCount = Array.isArray(window.karyawan) ? window.karyawan.filter(k => k.status !== "PENALTI" && !k.isDeleted).length : 0;
+                navKar.textContent = String(aktifCount || window.karyawan.length);
+            }
+        } catch (err) {
+            console.warn("Gagal update planning summary cards:", err);
+        }
+    }
+    window.updatePlanningSummaryCards = updatePlanningSummaryCards;
+
+    function setQuickFilterPlanning(type, button) {
+        currentPlanningQuickFilter = type;
+        document.querySelectorAll(".planning-chip").forEach(btn => btn.classList.remove("active"));
+        if (button) button.classList.add("active");
+
+        const tglInput = document.getElementById("filterTanggal");
+        if (type === "today") {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            if (tglInput) tglInput.value = `${yyyy}-${mm}-${dd}`;
+        } else if (type === "all") {
+            if (tglInput) tglInput.value = "";
+        }
+        renderPlanning();
+    }
+    window.setQuickFilterPlanning = setQuickFilterPlanning;
+
     function renderPlanning() {
 
         const tbody =
@@ -2837,6 +2924,30 @@
             });
 
         }
+
+        
+        if (currentPlanningQuickFilter === "need-evidence") {
+            data = data.filter(function (item) {
+                const id = item.idPlanning || item.id;
+                const localEvidence = typeof getPlanningEvidence === "function" ? getPlanningEvidence(id) : null;
+                const hasLocal = Boolean(localEvidence && (localEvidence.name || localEvidence.data));
+                const hasRemote = Boolean(item.buktiUrl || item.bukti_url || item.buktiNama || item.bukti_nama);
+                const hasCache = planningEvidenceCache.has(String(id));
+                const hasUploadedTTD = hasLocal || hasRemote || hasCache;
+                return !hasUploadedTTD;
+            });
+        } else if (currentPlanningQuickFilter === "completed") {
+            data = data.filter(function (item) {
+                const id = item.idPlanning || item.id;
+                const localEvidence = typeof getPlanningEvidence === "function" ? getPlanningEvidence(id) : null;
+                const hasLocal = Boolean(localEvidence && (localEvidence.name || localEvidence.data));
+                const hasRemote = Boolean(item.buktiUrl || item.bukti_url || item.buktiNama || item.bukti_nama);
+                const hasCache = planningEvidenceCache.has(String(id));
+                const hasUploadedTTD = hasLocal || hasRemote || hasCache;
+                return hasUploadedTTD;
+            });
+        }
+        updatePlanningSummaryCards();
 
         data.reverse();
 
@@ -3834,6 +3945,7 @@
                     <select id="previewJenisLembur">
                         <option value="harian" ${item.jenisLembur !== "tanggal_merah" ? "selected" : ""}>Harian</option>
                         <option value="tanggal_merah" ${item.jenisLembur === "tanggal_merah" ? "selected" : ""}>Tanggal Merah</option>
+                        <option value="lembur_off" ${item.jenisLembur === "lembur_off" ? "selected" : ""}>Lembur Off</option>
                     </select>
                 </div>
 
@@ -7268,7 +7380,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 await html2canvas(
                     exportContainer,
                     {
-                        scale:1.0,
+                        scale:2.0,
 
                         width:794,
 
@@ -7317,7 +7429,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 await html2canvas(
                     exportContainer,
                     {
-                        scale:1,
+                        scale:2.0,
 
                         width:794,
 
