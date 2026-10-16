@@ -102,9 +102,28 @@ function serveStatic(request, response) {
         ".ico": "image/x-icon"
     };
 
+    if (extension === ".html") {
+        let html = fs.readFileSync(filePath, "utf8");
+        const cacheBuster = Date.now();
+        html = html.replace(/(src|href)=["'](?!https?:\/\/)([^"']+\.(?:js|css))(?:\?[^"']*)?["']/gi, `$1="$2?v=${cacheBuster}"`);
+
+        response.writeHead(200, {
+            "Content-Type": contentTypes[extension],
+            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "Surrogate-Control": "no-store",
+            "Clear-Site-Data": "\"cache\""
+        });
+        response.end(html);
+        return;
+    }
+
     response.writeHead(200, {
         "Content-Type": contentTypes[extension] || "application/octet-stream",
-        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0",
+        "Pragma": "no-cache",
+        "Expires": "0"
     });
     fs.createReadStream(filePath).pipe(response);
 }

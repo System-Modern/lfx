@@ -19,8 +19,25 @@
     <title>Planning Lembur - LINFOX</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
 
-
-    <!-- =====================================================
+    <!-- ANTI-CACHE HEADERS & AUTO-PURGE SCRIPT -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <script>
+        // Otomatis hapus cache memory & service worker lama dari browser
+        if (typeof window !== "undefined") {
+            if ("caches" in window) {
+                caches.keys().then(function(names) {
+                    names.forEach(function(name) { caches.delete(name); });
+                }).catch(function() {});
+            }
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    regs.forEach(function(r) { r.unregister(); });
+                }).catch(function() {});
+            }
+        }
+    </script>
          SUPABASE CDN
     ====================================================== -->
 
