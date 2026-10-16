@@ -284,6 +284,10 @@ function normalisasiKaryawanData(data) {
 
                 id,
 
+                databaseId: item.id,
+
+                idDatabase: item.id,
+
                 kode_karyawan,
 
                 nik,
@@ -535,6 +539,7 @@ function bentukDataPlanning(
                 k.databaseId ??
                 k.idDatabase ??
                 k._databaseId ??
+                k.id ??
                 ""
             );
 

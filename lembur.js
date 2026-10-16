@@ -679,16 +679,24 @@
 
     function findPlanningById(idPlanning) {
 
-        if (!Array.isArray(planning)) {
+        const target = String(idPlanning ?? "").trim();
+        if (!target) {
             return null;
         }
 
-        const target = String(idPlanning);
+        const list = (Array.isArray(window.planning) && window.planning.length > 0)
+            ? window.planning
+            : (typeof planning !== "undefined" && Array.isArray(planning) && planning.length > 0
+                ? planning
+                : (typeof getPlanning === "function" && Array.isArray(getPlanning()) ? getPlanning() : []));
 
-        return planning.find(function (item) {
-
-            return getPlanningId(item) === target;
-
+        return list.find(function (item) {
+            if (!item) return false;
+            return String(item.idPlanning || "").trim() === target ||
+                   String(item.kode_planning || "").trim() === target ||
+                   String(item.id || "").trim() === target ||
+                   String(item.databaseId || "").trim() === target ||
+                   String(getPlanningId(item)).trim() === target;
         }) || null;
 
     }
@@ -3029,10 +3037,26 @@
                                 k.namaKaryawan ||
                                 "-";
 
-                            return `<span class="planning-employee-name"><span class="planning-employee-number">${employeeIndex + 1}.</span>${escapePlanningHTML(nama)}</span>`;
+                            const nik =
+                                k.nik ||
+                                k.kode_karyawan ||
+                                "";
+
+                            const nikBadge = nik
+                                ? ` <span style="font-size:11px;font-weight:600;color:#1e40af;background:#dbeafe;padding:1px 6px;border-radius:4px;margin-left:4px;">NIK: ${escapePlanningHTML(nik)}</span>`
+                                : "";
+
+                            return `<span class="planning-employee-name"><span class="planning-employee-number">${employeeIndex + 1}.</span>${escapePlanningHTML(nama)}${nikBadge}</span>`;
                         })
                         .join("")
                     : `<span class="planning-employee-name">-</span>`;
+
+            const jenisVal = String(item.jenisLembur || item.jenis_lembur || "harian").toLowerCase();
+            const jenisBadge = (jenisVal === "tanggal_merah" || jenisVal === "red_date")
+                ? `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:#fee2e2;color:#b91c1c;">Tanggal Merah</span>`
+                : (jenisVal === "lembur_off"
+                    ? `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:#fef3c7;color:#b45309;">Lembur Off</span>`
+                    : `<span style="display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:#dcfce7;color:#15803d;">Harian</span>`);
 
             const tr =
                 document.createElement("tr");
@@ -3078,6 +3102,10 @@
                             item.durasiMenit
                         )
                     )}
+                </td>
+
+                <td>
+                    ${jenisBadge}
                 </td>
 
                 <td>
@@ -5704,56 +5732,61 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         const jamMulai =
             item.jamMulai ||
             item.jam_mulai ||
+            item.startTime ||
+            item.start_time ||
             "-";
 
 
-        const jamSelesai =
+        let jamSelesai =
             item.jamSelesai ||
             item.jam_selesai ||
-            "-";
+            item.endTime ||
+            item.end_time ||
+            "";
 
 
         let durasi =
             item.durasi ||
             item.durasiLembur ||
+            item.durasi_lembur ||
             null;
 
+        const durasiMenitVal = Number(item.durasiMenit ?? item.durasi_menit ?? item.durationMinutes ?? 0);
 
-        if (
-            !durasi &&
-            item.durasiMenit !== undefined &&
-            item.durasiMenit !== null
-        ) {
-
-            if (
-                typeof formatDurasiPlanning === "function"
-            ) {
-
-                durasi =
-                    formatDurasiPlanning(
-                        item.durasiMenit
-                    );
-
-            } else {
-
-                durasi =
-                    item.durasiMenit;
-
-            }
-
+        if (!durasi && durasiMenitVal > 0) {
+            durasi = typeof formatDurasiPlanning === "function"
+                ? formatDurasiPlanning(durasiMenitVal)
+                : `${Math.round(durasiMenitVal / 60)} Jam`;
         }
 
+        if ((!jamSelesai || jamSelesai === "-") && jamMulai && jamMulai !== "-" && durasiMenitVal > 0) {
+            try {
+                const parts = String(jamMulai).split(":");
+                const startM = Number(parts[0]) * 60 + Number(parts[1] || 0);
+                const endM = (startM + durasiMenitVal) % 1440;
+                const hh = String(Math.floor(endM / 60)).padStart(2, "0");
+                const mm = String(endM % 60).padStart(2, "0");
+                jamSelesai = `${hh}:${mm}:00`;
+            } catch (e) {}
+        }
 
-        durasi = durasi || "-";
+        if (!jamSelesai || jamSelesai === "-") {
+            jamSelesai = "18:00:00";
+        }
+
+        durasi = durasi || "4 Jam";
 
 
-        const jenisLemburValue =
+        const jenisLemburValue = String(
             item.jenisLembur ||
             item.jenis_lembur ||
-            "harian";
+            item.typeOfOvertime ||
+            item.type_of_overtime ||
+            "harian"
+        ).toLowerCase();
 
         const jenisLemburTampil =
-            jenisLemburValue === "tanggal_merah"
+            (jenisLemburValue === "tanggal_merah" || jenisLemburValue === "red_date")
                 ? "Tanggal Merah"
                 : (jenisLemburValue === "lembur_off" ? "Lembur Off" : "Harian");
 
@@ -5863,46 +5896,34 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
         function findMasterKaryawan(data) {
 
-            const key =
-                getKaryawanKey(data);
+            if (!data) return null;
+            const masterList = Array.isArray(masterKaryawan) ? masterKaryawan : [];
 
-
-            if (
-                key === null ||
-                key === ""
-            ) {
-                return null;
+            if (typeof data !== "object") {
+                const s = String(data).trim().toLowerCase();
+                return masterList.find(function (m) {
+                    return String(m.kode_karyawan || "").trim().toLowerCase() === s ||
+                           String(m.nik || "").trim().toLowerCase() === s ||
+                           String(m.id || "").trim().toLowerCase() === s ||
+                           String(m.databaseId || "").trim().toLowerCase() === s ||
+                           String(m.nama || "").trim().toLowerCase() === s;
+                }) || null;
             }
 
+            const idVal = String(data.id || data.idKaryawan || data.databaseId || "").trim().toLowerCase();
+            const codeVal = String(data.kode_karyawan || data.nik || data.NIK || "").trim().toLowerCase();
+            const namaVal = String(data.nama || data.namaKaryawan || "").trim().toLowerCase();
 
-            return masterKaryawan.find(
-                function(karyawan) {
+            return masterList.find(function (m) {
+                const mCode = String(m.kode_karyawan || m.nik || "").trim().toLowerCase();
+                const mId = String(m.id || m.databaseId || "").trim().toLowerCase();
+                const mNama = String(m.nama || "").trim().toLowerCase();
 
-                    const masterKey =
-                        getKaryawanKey(
-                            karyawan
-                        );
-
-
-                    if (
-                        masterKey === null
-                    ) {
-                        return false;
-                    }
-
-
-                    return (
-                        String(masterKey)
-                            .trim()
-                            .toLowerCase()
-                        ===
-                        String(key)
-                            .trim()
-                            .toLowerCase()
-                    );
-
-                }
-            ) || null;
+                if (codeVal && (mCode === codeVal || mId === codeVal)) return true;
+                if (idVal && (mId === idVal || mCode === idVal)) return true;
+                if (namaVal && mNama === namaVal) return true;
+                return false;
+            }) || null;
 
         }
 
@@ -6124,7 +6145,6 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                         data.employeeID ||
                         data.id ||
                         data.ID ||
-                        "-";
                         "-";
 
 
