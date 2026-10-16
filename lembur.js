@@ -5622,7 +5622,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
        VALIDASI
     ========================================================= */
 
-    if (planningCRUDLoading && !allowWhileSaving && !silent) {
+    if (planningCRUDLoading && !allowWhileSaving) {
         return false;
     }
 
@@ -5635,54 +5635,6 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         return false;
     }
 
-    const idStr = String(idPlanning ?? "");
-    const cleanId = idStr.replace(/[^a-zA-Z0-9_-]/g, "_");
-
-    // 1. Unduh instan jika blob preview sudah tersimpan di memori
-    const cachedBlob = planningPreviewBlobCache.get(idStr) || planningPreviewBlobCache.get(idPlanning);
-    if (shouldDownload && cachedBlob) {
-        triggerPlanningEvidenceDownload(cachedBlob, `SPL_${cleanId}.png`);
-        if (!silent && typeof showPlanningToast === "function") {
-            showPlanningToast("success", "Unduhan selesai", `SPL ${idPlanning} berhasil diunduh.`);
-        }
-        return true;
-    }
-
-    // 2. Unduh instan via preview_url yang sudah ada di database tanpa render ulang
-    const existingPreviewUrl = item.previewUrl || item.preview_url;
-    if (shouldDownload && existingPreviewUrl && typeof existingPreviewUrl === "string" && existingPreviewUrl.startsWith("http")) {
-        try {
-            if (!silent) showPlanningLoading("Mengunduh preview SPL...");
-            let fetchUrl = existingPreviewUrl;
-            const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || window.PlanburEnv?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
-            const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
-            const fetchHeaders = (supabaseKey && (existingPreviewUrl.includes("supabase.co") || fetchUrl.includes("/supabase")))
-                ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey }
-                : {};
-
-            if (existingPreviewUrl.includes(supabaseBase)) {
-                fetchUrl = existingPreviewUrl.replace(supabaseBase, window.location.origin + "/supabase");
-            }
-            const res = await fetch(fetchUrl, { cache: "force-cache", headers: fetchHeaders });
-            if (res.ok) {
-                const blob = await res.blob();
-                if (blob && blob.size > 0) {
-                    planningPreviewBlobCache.set(idPlanning, blob);
-                    planningPreviewBlobCache.set(idStr, blob);
-                    triggerPlanningEvidenceDownload(blob, `SPL_${cleanId}.png`);
-                    if (!silent && typeof showPlanningToast === "function") {
-                        showPlanningToast("success", "Unduhan selesai", `SPL ${idPlanning} berhasil diunduh.`);
-                    }
-                    return true;
-                }
-            }
-        } catch (fetchErr) {
-            console.warn("[Unduh SPL] Fallback ke render canvas:", fetchErr);
-        } finally {
-            if (!silent) hidePlanningLoading();
-        }
-    }
-
     if (typeof html2canvas === "undefined") {
         if (!silent) {
             alert("html2canvas belum termuat.");
@@ -5690,16 +5642,16 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         return false;
     }
 
+
     /* =========================================================
-       LOCK + LOADING (Hanya jika bukan background silent)
+       LOCK + LOADING
     ========================================================= */
 
-    if (!silent) {
-        planningCRUDLoading = true;
-        try {
-            showPlanningLoading("Menyiapkan PNG...");
-        } catch (e) {}
-    }
+    planningCRUDLoading = true;
+
+    try {
+        showPlanningLoading("Menyiapkan PNG...");
+    } catch (e) {}
 
 
     let exportContainer = null;
@@ -5740,15 +5692,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
         const tanggal =
-            item.tanggal ||
-            item.tanggalLembur ||
-            item.tanggal_lembur ||
-            item.date ||
-            item.dateOvertime ||
-            item.date_overtime ||
-            item.overtimeDate ||
-            item.overtime_date ||
-            "-";
+            item.tanggal || "-";
 
 
         const tanggalTampil =
@@ -5760,67 +5704,58 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         const jamMulai =
             item.jamMulai ||
             item.jam_mulai ||
-            item.jamMulaiLembur ||
-            item.jam_mulai_lembur ||
-            item.startTime ||
-            item.start_time ||
-            item.waktuMulai ||
-            item.waktu_mulai ||
             "-";
 
 
         const jamSelesai =
             item.jamSelesai ||
             item.jam_selesai ||
-            item.jamSelesaiLembur ||
-            item.jam_selesai_lembur ||
-            item.endTime ||
-            item.end_time ||
-            item.waktuSelesai ||
-            item.waktu_selesai ||
-            (item.jamMulai ? "21:00" : "-");
+            "-";
+
 
         let durasi =
             item.durasi ||
             item.durasiLembur ||
-            item.durasi_lembur ||
-            item.durationMinutes ||
-            item.duration_minutes ||
-            item.lamanya ||
-            item.lama ||
             null;
 
-        if (!durasi && typeof item.durasiMenit !== "undefined" && item.durasiMenit !== null && item.durasiMenit !== "") {
-            durasi = typeof formatDurasiPlanning === "function" 
-                ? formatDurasiPlanning(item.durasiMenit)
-                : item.durasiMenit + " Menit";
+
+        if (
+            !durasi &&
+            item.durasiMenit !== undefined &&
+            item.durasiMenit !== null
+        ) {
+
+            if (
+                typeof formatDurasiPlanning === "function"
+            ) {
+
+                durasi =
+                    formatDurasiPlanning(
+                        item.durasiMenit
+                    );
+
+            } else {
+
+                durasi =
+                    item.durasiMenit;
+
+            }
+
         }
 
-        if (!durasi && typeof item.durationMinutes !== "undefined" && item.durationMinutes !== null && item.durationMinutes !== "") {
-            durasi = typeof formatDurasiPlanning === "function"
-                ? formatDurasiPlanning(item.durationMinutes)
-                : item.durationMinutes + " Menit";
-        }
 
-        durasi = durasi || "8 Jam";
+        durasi = durasi || "-";
+
 
         const jenisLemburValue =
             item.jenisLembur ||
             item.jenis_lembur ||
-            item.jenisLemburPlanning ||
-            item.jenis_lembur_planning ||
-            item.typeOfOvertime ||
-            item.type_of_overtime ||
-            item.tipeOvertime ||
-            item.tipe_overtime ||
             "harian";
 
         const jenisLemburTampil =
-            (jenisLemburValue === "tanggal_merah" ||
-            jenisLemburValue === "red_date" ||
-            jenisLemburValue === "libur_nasional")
+            jenisLemburValue === "tanggal_merah"
                 ? "Tanggal Merah"
-                : "Harian";
+                : (jenisLemburValue === "lembur_off" ? "Lembur Off" : "Harian");
 
 
         const keterangan =
@@ -5858,9 +5793,11 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         ===================================================== */
 
         const masterKaryawan =
-            Array.isArray(window.karyawanData)
-                ? window.karyawanData
-                : [];
+            (typeof getKaryawan === "function" && Array.isArray(getKaryawan()) && getKaryawan().length > 0)
+                ? getKaryawan()
+                : (Array.isArray(window.karyawan) && window.karyawan.length > 0
+                    ? window.karyawan
+                    : (Array.isArray(window.karyawanData) ? window.karyawanData : []));
 
 
         function getKaryawanKey(data) {
@@ -5881,6 +5818,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
             const keys = [
+                "kode_karyawan",
+                "nik",
+                "NIK",
                 "idKaryawan",
                 "id_karyawan",
                 "employeeId",
@@ -5888,10 +5828,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 "employeeID",
                 "id",
                 "ID",
-                "nik",
-                "NIK",
-                "nip",
-                "NIP"
+                "databaseId"
             ];
 
 
@@ -6165,24 +6102,11 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                         "-";
 
 
-                    const id =
-                        data.idKaryawan ||
-                        data.id_karyawan ||
-                        data.employeeId ||
-                        data.employee_id ||
-                        data.employeeID ||
-                        data.id ||
-                        data.ID ||
-                        data.nik ||
-                        data.NIK ||
-                        data.nip ||
-                        data.NIP ||
-                        "-";
-
-
                     const nik =
                         data.nik ||
                         data.NIK ||
+                        data.kode_karyawan ||
+                        data.kodeKaryawan ||
                         data.nikKaryawan ||
                         data.NIKKaryawan ||
                         data.nik_karyawan ||
@@ -6201,11 +6125,11 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                         data.id ||
                         data.ID ||
                         "-";
+                        "-";
 
 
                     return {
                         nama: String(nama).trim(),
-                        id: String(id).trim(),
                         nik: String(nik).trim()
                     };
 
@@ -6221,6 +6145,11 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                         data.nama !== "-" ||
                         data.nik !== "-"
                     );
+
+        dataKaryawan.sort(function(a, b) {
+            return String(a.nama || "").localeCompare(String(b.nama || ""));
+        });
+
 
                 }
             );
@@ -6316,7 +6245,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                     <tr>
 
                         <td style="
-                            width:45px;
+                            width:55px;
                             padding:${rowPadding}px 6px;
                             text-align:center;
                             background:#f5f5f5;
@@ -6334,7 +6263,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                         <td style="
-                            width:280px;
+                            width:350px;
                             padding:${rowPadding}px 14px;
                             text-align:left;
                             background:#ffffff;
@@ -6357,33 +6286,10 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                         <td style="
-                            width:170px;
+                            width:255px;
                             padding:${rowPadding}px 14px;
                             text-align:left;
                             background:#f5f5f5;
-                            color:#202020;
-                            border:1px solid #d7d7d7;
-                            font-family:Arial,Helvetica,sans-serif;
-                            font-size:${employeeFontSize}px;
-                            font-weight:400;
-                            vertical-align:middle;
-                            box-sizing:border-box;
-                            line-height:1.35;
-                            letter-spacing:.1px;
-                            white-space:normal;
-                            overflow-wrap:anywhere;
-                        ">
-                            ${escapeHTML(
-                                dataKaryawan.id
-                            )}
-                        </td>
-
-
-                        <td style="
-                            width:165px;
-                            padding:${rowPadding}px 14px;
-                            text-align:left;
-                            background:#ffffff;
                             color:#202020;
                             border:1px solid #d7d7d7;
                             font-family:Arial,Helvetica,sans-serif;
@@ -6892,22 +6798,6 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     ${escapeHTML(jenisLemburTampil)}
                                 </td>
 
-                                <td style="
-                                    width:105px;
-                                    height:44px;
-                                    background:transparent;
-                                    border:none;
-                                ">
-                                </td>
-
-                                <td style="
-                                    width:225px;
-                                    height:44px;
-                                    background:transparent;
-                                    border:none;
-                                ">
-                                </td>
-
                             </tr>
 
                         </table>
@@ -6980,19 +6870,15 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                             <colgroup>
 
                                 <col style="
-                                    width:45px;
+                                    width:55px;
                                 ">
 
                                 <col style="
-                                    width:280px;
+                                    width:350px;
                                 ">
 
                                 <col style="
-                                    width:170px;
-                                ">
-
-                                <col style="
-                                    width:165px;
+                                    width:255px;
                                 ">
 
                             </colgroup>
@@ -7003,7 +6889,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                 <tr>
 
                                     <th style="
-                                        width:45px;
+                                        width:55px;
                                         padding:${headerPadding}px 6px;
                                         background:#202020;
                                         color:rgb(247,244,15);
@@ -7019,7 +6905,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                     <th style="
-                                        width:280px;
+                                        width:350px;
                                         padding:${headerPadding}px 14px;
                                         background:#202020;
                                         color:rgb(247,244,15);
@@ -7035,7 +6921,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                     <th style="
-                                        width:170px;
+                                        width:255px;
                                         padding:${headerPadding}px 14px;
                                         background:#202020;
                                         color:rgb(247,244,15);
@@ -7047,22 +6933,6 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                         line-height:1.3;
                                     ">
                                         ID KARYAWAN
-                                    </th>
-
-
-                                    <th style="
-                                        width:165px;
-                                        padding:${headerPadding}px 14px;
-                                        background:#202020;
-                                        color:rgb(247,244,15);
-                                        border:1px solid #202020;
-                                        text-align:left;
-                                        font-size:${employeeFontSize}px;
-                                        font-weight:800;
-                                        box-sizing:border-box;
-                                        line-height:1.3;
-                                    ">
-                                        NIK
                                     </th>
 
                                 </tr>
@@ -7369,9 +7239,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
            RENDER
         ===================================================== */
 
-        if (!silent) {
-            showPlanningLoading("Membuat gambar PNG...");
-        }
+        showPlanningLoading(
+            "Membuat gambar PNG..."
+        );
 
 
         await new Promise(
@@ -7400,7 +7270,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 await html2canvas(
                     exportContainer,
                     {
-                        scale:2.0,
+                        scale:1.5,
 
                         width:794,
 
@@ -7416,7 +7286,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
                         allowTaint:false,
 
-                        imageTimeout:1500,
+                        imageTimeout:5000,
 
                         logging:false,
 
@@ -7449,7 +7319,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 await html2canvas(
                     exportContainer,
                     {
-                        scale:2.0,
+                        scale:1,
 
                         width:794,
 
@@ -7495,9 +7365,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
            BLOB
         ===================================================== */
 
-        if (!silent) {
-            showPlanningLoading("Menyiapkan file PNG...");
-        }
+        showPlanningLoading(
+            "Menyiapkan file PNG..."
+        );
 
 
         const blob =
@@ -7529,28 +7399,52 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
             );
 
 
-                const namaFile =
+        const namaFile =
             String(idPlanning)
                 .replace(
                     /[^a-zA-Z0-9_-]/g,
                     "_"
                 );
 
-        // Cache blob immediately
-        planningPreviewBlobCache.set(idPlanning, blob);
-
-        // 1. Download IMMEDIATELY without waiting for network upload!
-        if (shouldDownload) {
-            triggerPlanningEvidenceDownload(blob, `SPL_${namaFile}.png`);
-        }
-
-        // 2. Upload preview to Supabase asynchronously in background
-        let previewSaved = true;
+        let previewSaved = !shouldSavePreview;
         let previewError = null;
 
         if (shouldSavePreview) {
-            uploadPlanningPreview(idPlanning, blob).catch(function (error) {
-                console.warn("[PREVIEW PNG] Upload background gagal:", error);
+            showPlanningLoading("Menyimpan preview ke Supabase...");
+
+            try {
+                await uploadPlanningPreview(idPlanning, blob);
+                previewSaved = true;
+            } catch (error) {
+                previewError = error;
+                console.error("[PREVIEW PNG] GAGAL DISIMPAN:", error);
+            }
+        }
+
+        if (shouldDownload) {
+            objectURL = URL.createObjectURL(blob);
+            downloadLink = document.createElement("a");
+
+            downloadLink.style.position = "fixed";
+            downloadLink.style.left = "-99999px";
+            downloadLink.style.top = "0";
+            downloadLink.style.width = "1px";
+            downloadLink.style.height = "1px";
+            downloadLink.style.opacity = "0";
+            downloadLink.href = objectURL;
+            downloadLink.download = `SPL_${namaFile}.png`;
+            document.body.appendChild(downloadLink);
+
+            await new Promise(function(resolve) {
+                requestAnimationFrame(function() {
+                    try {
+                        downloadLink.click();
+                    }
+                    catch (e) {
+                        console.error("[PNG] Download error:", e);
+                    }
+                    setTimeout(resolve, 500);
+                });
             });
         }
 
@@ -7668,16 +7562,27 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
         catch (e) {}
 
 
-        if (!silent) {
-            try {
-                setTimeout(function() {
+        try {
+
+            setTimeout(
+                function() {
+
                     try {
                         hidePlanningLoading();
-                    } catch (e) {}
-                }, 150);
-            } catch (e) {}
-            planningCRUDLoading = previousLoadingState;
+                    }
+
+                    catch (e) {}
+
+                },
+                300
+            );
+
         }
+
+        catch (e) {}
+
+
+        planningCRUDLoading = previousLoadingState;
 
     }
 
