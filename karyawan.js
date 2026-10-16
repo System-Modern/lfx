@@ -9,38 +9,21 @@ function updateBulkBarUI() {
     const bulkBar = document.getElementById("karyawanBulkBar");
     const countBadge = document.getElementById("bulkSelectedCount");
     const selectAllBox = document.getElementById("selectAllKaryawan");
-    const btnHeader = document.getElementById("btnHapusKaryawanHeader");
-    const labelHeader = document.getElementById("labelHapusKaryawanHeader");
-    const badgeHeader = document.getElementById("badgeHapusKaryawanCount");
-    const btnBatalHeader = document.getElementById("btnBatalPilihHeader");
+    const btnBulkDeleteText = document.getElementById("btnBulkDeleteText");
     const count = selectedKaryawanIds.size;
 
     if (countBadge) {
         countBadge.textContent = String(count);
     }
 
-    if (bulkBar) {
-        bulkBar.style.display = count > 0 ? "flex" : "none";
+    if (btnBulkDeleteText) {
+        btnBulkDeleteText.textContent = count > 0 
+            ? `Hapus (${count}) Karyawan Terpilih`
+            : "Hapus Karyawan Terpilih";
     }
 
-    if (btnHeader) {
-        if (count > 0) {
-            btnHeader.classList.add("active-bulk");
-            if (labelHeader) labelHeader.textContent = `Hapus (${count}) Karyawan`;
-            if (badgeHeader) {
-                badgeHeader.textContent = String(count);
-                badgeHeader.style.display = "inline-flex";
-            }
-            if (btnBatalHeader) btnBatalHeader.style.display = "inline-flex";
-        } else {
-            btnHeader.classList.remove("active-bulk");
-            if (labelHeader) labelHeader.textContent = "Hapus Karyawan";
-            if (badgeHeader) {
-                badgeHeader.textContent = "0";
-                badgeHeader.style.display = "none";
-            }
-            if (btnBatalHeader) btnBatalHeader.style.display = "none";
-        }
+    if (bulkBar) {
+        bulkBar.style.display = count > 0 ? "flex" : "none";
     }
 
     if (selectAllBox) {
@@ -129,17 +112,21 @@ async function hapusKaryawanTerpilih() {
         // Backup untuk rollback jika gagal
         const backupKaryawan = [...dataKaryawan];
 
+        updateCRUDLoading(60, "Menghapus dari database cloud Supabase...");
+        const idsArray = Array.from(selectedKaryawanIds);
+
+        // Hapus langsung dari Supabase via PlanburAPI
+        if (window.PlanburAPI && typeof window.PlanburAPI.deleteKaryawan === "function") {
+            await window.PlanburAPI.deleteKaryawan(idsArray);
+        }
+
         // Filter array in-memory
         const sisaKaryawan = dataKaryawan.filter(item => !selectedKaryawanIds.has(normalizeId(item.id)));
         window.karyawan = sisaKaryawan;
 
-        updateCRUDLoading(60, "Menyimpan ke database cloud...");
-        const berhasil = await saveKaryawanData();
-
-        if (!berhasil) {
-            window.karyawan = backupKaryawan;
-            throw new Error("Gagal menghapus beberapa data karyawan dari database.");
-        }
+        try {
+            await saveKaryawanData();
+        } catch (_) {}
 
         updateCRUDLoading(90, "Menyegarkan antarmuka...");
         selectedKaryawanIds.clear();
@@ -1547,20 +1534,24 @@ async function tambahKaryawan() {
         dataKaryawan =
             getDataKaryawan();
 
-        const sudahAda =
-            dataKaryawan.some(
-                item =>
-                    normalizeId(
-                        item.id
-                    ) === id
+        // Cek double input di database / list karyawan (berdasarkan ID dan Nama)
+        const duplicateById = dataKaryawan.find(item => normalizeId(item.id) === id && !item.isDeleted);
+        const duplicateByNama = dataKaryawan.find(item => item.nama && String(item.nama).trim().toLowerCase() === nama.toLowerCase() && !item.isDeleted);
+
+        if (duplicateById || duplicateByNama) {
+            const detailDouble = duplicateById
+                ? `ID Karyawan ${id} sudah terdaftar di database atas nama "${duplicateById.nama}"!`
+                : `Karyawan dengan nama "${nama}" sudah terdaftar di database dengan ID ${duplicateByNama.id}!`;
+
+            alert(`⚠️ PERINGATAN: DATA DOUBLE INPUT!\n\n${detailDouble}\n\nData karyawan tidak dapat ditambahkan karena sudah ada di dalam database.`);
+
+            cancelCRUDProcess();
+            showCRUDToast(
+                "warning",
+                "Data Double Input Terdeteksi",
+                detailDouble
             );
-
-        if (sudahAda) {
-
-            throw new Error(
-                "ID karyawan sudah terdaftar."
-            );
-
+            return;
         }
 
         const dataBaru = {
@@ -1783,8 +1774,9 @@ async function simpanEditKaryawan() {
 
     // Cek apakah NIK baru bentrok dengan karyawan lain
     if (idBaru !== idLama) {
-        const duplikat = dataKaryawan.some((item, i) => i !== index && normalizeId(item.id) === idBaru);
+        const duplikat = dataKaryawan.some((item, i) => i !== index && normalizeId(item.id) === idBaru && !item.isDeleted);
         if (duplikat) {
+            alert(`⚠️ PERINGATAN: DATA DOUBLE INPUT!\n\nID Karyawan ${idBaru} sudah digunakan oleh karyawan lain di dalam database.`);
             showCRUDToast("error", "ID sudah terdaftar", `ID ${idBaru} sudah digunakan oleh karyawan lain.`);
             return;
         }
@@ -1955,6 +1947,16 @@ async function hapusKaryawan(index) {
             ...data
         };
 
+        // Langsung hapus dari database Supabase via PlanburAPI
+        updateCRUDLoading(
+            50,
+            "Menghapus dari database cloud Supabase..."
+        );
+
+        if (window.PlanburAPI && typeof window.PlanburAPI.deleteKaryawan === "function") {
+            await window.PlanburAPI.deleteKaryawan(id);
+        }
+
         dataKaryawan.splice(
             index,
             1
@@ -1963,30 +1965,9 @@ async function hapusKaryawan(index) {
         window.karyawan =
             dataKaryawan;
 
-        updateCRUDLoading(
-            50,
-            "Menyimpan perubahan..."
-        );
-
-        const berhasil =
+        try {
             await saveKaryawanData();
-
-        if (!berhasil) {
-
-            dataKaryawan.splice(
-                index,
-                0,
-                dataLama
-            );
-
-            window.karyawan =
-                dataKaryawan;
-
-            throw new Error(
-                "Data gagal dihapus dari database."
-            );
-
-        }
+        } catch (_) {}
 
         updateCRUDLoading(
             80,
@@ -3637,29 +3618,18 @@ function updateKaryawanDropdown() {
                     .trim()
                     .toUpperCase();
 
-
-                if (
-                    status ===
-                    "PENALTI"
-                ) {
-
-                    return;
-
-                }
-
-
                 const option =
                     document.createElement(
                         "option"
                     );
 
-
                 option.value =
                     item.id;
 
                 option.textContent =
-                    `${item.id} - ${item.nama}`;
-
+                    status === "PENALTI"
+                        ? `${item.id} - ${item.nama} (PENALTI)`
+                        : `${item.id} - ${item.nama}`;
 
                 fragment.appendChild(
                     option

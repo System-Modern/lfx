@@ -78,6 +78,11 @@ function serveStatic(request, response) {
     const filePath = path.resolve(publicRoot, "." + requestedPath);
 
     if (!filePath.startsWith(publicRoot) || !fs.existsSync(filePath)) {
+        if (requestedPath === "/favicon.ico" && fs.existsSync(path.resolve(publicRoot, "Logo.png"))) {
+            response.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" });
+            fs.createReadStream(path.resolve(publicRoot, "Logo.png")).pipe(response);
+            return;
+        }
         response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
         response.end("Not found");
         return;
@@ -99,7 +104,7 @@ function serveStatic(request, response) {
 
     response.writeHead(200, {
         "Content-Type": contentTypes[extension] || "application/octet-stream",
-        "Cache-Control": "no-cache, must-revalidate"
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"
     });
     fs.createReadStream(filePath).pipe(response);
 }

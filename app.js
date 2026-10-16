@@ -1153,27 +1153,49 @@ function showPage(
         );
 
 
+    const desktopNavIdMap = {
+        dashboard: "navBtnDashboard",
+        karyawan: "navBtnKaryawan",
+        planning: "navBtnPlanning",
+        laporan: "navBtnLaporan"
+    };
+
     document
         .querySelectorAll(
             ".menu-item"
         )
         .forEach(
             item => {
-
                 item.classList.remove(
                     "active"
                 );
-
+                if (desktopNavIdMap[pageId] && item.id === desktopNavIdMap[pageId]) {
+                    item.classList.add("active");
+                }
             }
         );
 
+    document
+        .querySelectorAll(
+            ".mobile-nav-item"
+        )
+        .forEach(
+            item => {
+                item.classList.toggle(
+                    "active",
+                    item.dataset.page === pageId
+                );
+            }
+        );
 
     if (button) {
-
         button.classList.add(
             "active"
         );
+    }
 
+    if (window.innerWidth <= 768) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
 
@@ -3892,13 +3914,25 @@ console.log(
             }
         }
         const navPlan = document.getElementById("navPlanningCount");
-        if (navPlan && Array.isArray(window.planning)) {
-            navPlan.textContent = String(window.planning.length);
+        const mobNavPlan = document.getElementById("mobileNavPlanningCount");
+        if (Array.isArray(window.planning)) {
+            const planCount = String(window.planning.length);
+            if (navPlan) navPlan.textContent = planCount;
+            if (mobNavPlan) mobNavPlan.textContent = planCount;
         }
+
         const navKar = document.getElementById("navKaryawanCount");
-        if (navKar && Array.isArray(window.karyawan)) {
+        const mobNavKar = document.getElementById("mobileNavKaryawanCount");
+        if (Array.isArray(window.karyawan)) {
             const aktif = window.karyawan.filter(k => k.status !== "PENALTI" && !k.isDeleted).length;
-            navKar.textContent = String(aktif || window.karyawan.length);
+            const karCount = String(aktif || window.karyawan.length);
+            if (navKar) navKar.textContent = karCount;
+            if (mobNavKar) mobNavKar.textContent = karCount;
+        }
+
+        const mobileShiftEl = document.getElementById("mobileShiftChip");
+        if (mobileShiftEl && sidebarShiftEl) {
+            mobileShiftEl.textContent = sidebarShiftEl.textContent.split("•")[0].trim();
         }
     }
 

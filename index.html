@@ -17,6 +17,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
     <title>Planning Lembur - LINFOX</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
 
 
     <!-- =====================================================
@@ -315,6 +316,26 @@
         });
     })();
 </script>
+
+
+<!-- =====================================================
+     MOBILE TOPBAR (HEADER KHUSUS TAMPILAN MOBILE)
+====================================================== -->
+<header class="mobile-top-bar" id="mobileTopBar">
+    <div class="mobile-brand">
+        <div class="mobile-logo">
+            <img src="Logo.png" alt="LINFOX Logo">
+        </div>
+        <div class="mobile-brand-title">
+            <strong>PT LINFOX LOGISTICS</strong>
+            <span class="mobile-brand-sub">PORTAL OPERASIONAL LEMBUR</span>
+        </div>
+    </div>
+    <div class="mobile-status-chip">
+        <span class="mobile-beacon"></span>
+        <span id="mobileShiftChip">Shift Aktif</span>
+    </div>
+</header>
 
 
 <!-- =====================================================
@@ -1335,7 +1356,7 @@
 
                     <div class="form-group">
 
-                        <label>
+                        <label for="idKaryawan">
                             ID Karyawan
                         </label>
 
@@ -1357,7 +1378,7 @@
 
                     <div class="form-group">
 
-                        <label>
+                        <label for="namaKaryawan">
                             Nama Karyawan
                         </label>
 
@@ -1376,7 +1397,7 @@
 
                     <div class="form-group">
 
-                        <label>
+                        <label for="tanggalLahirKaryawan">
                             Tanggal Lahir (Opsional)
                         </label>
 
@@ -1434,35 +1455,6 @@
 
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
 
-                    <!-- TOMBOL HAPUS KARYAWAN DI HEADER DIATAS TABEL -->
-                    <button
-                        type="button"
-                        id="btnHapusKaryawanHeader"
-                        class="btn-hapus-bulk-header"
-                        onclick="window.hapusKaryawanTerpilih()"
-                        title="Hapus karyawan yang dipilih dengan ceklis"
-                    >
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                        </svg>
-                        <span id="labelHapusKaryawanHeader">Hapus Karyawan</span>
-                        <span id="badgeHapusKaryawanCount" class="badge-count-hidden">0</span>
-                    </button>
-
-                    <button
-                        type="button"
-                        id="btnBatalPilihHeader"
-                        class="btn-batal-bulk-header"
-                        onclick="window.batalPilihKaryawan()"
-                        style="display: none;"
-                        title="Batalkan semua pilihan centang"
-                    >
-                        Batal
-                    </button>
-
                     <div class="search-box">
 
                         <input
@@ -1478,11 +1470,11 @@
             </div>
 
 
-            <!-- FLOATING BULK ACTIONS BAR -->
+            <!-- FLOATING BULK ACTIONS BAR (UNIFIED & SLEEK) -->
             <div id="karyawanBulkBar" class="karyawan-bulk-bar" style="display: none;">
                 <div class="bulk-info">
                     <span class="bulk-count-badge" id="bulkSelectedCount">0</span>
-                    <span>karyawan dipilih untuk dihapus massal</span>
+                    <span class="bulk-label-text">karyawan dipilih untuk dihapus</span>
                 </div>
                 <div class="bulk-actions">
                     <button type="button" class="btn-bulk-delete" id="btnBulkDeleteKaryawan" onclick="window.hapusKaryawanTerpilih()">
@@ -1492,7 +1484,7 @@
                             <line x1="10" y1="11" x2="10" y2="17"></line>
                             <line x1="14" y1="11" x2="14" y2="17"></line>
                         </svg>
-                        Hapus Karyawan Terpilih
+                        <span id="btnBulkDeleteText">Hapus Karyawan Terpilih</span>
                     </button>
                     <button type="button" class="btn-bulk-cancel" onclick="window.batalPilihKaryawan()">
                         Batal
@@ -1698,7 +1690,7 @@
 
                 <div class="form-group">
 
-                    <label>
+                    <label for="filterTanggal">
                         Saring Tanggal
                     </label>
 
@@ -1714,7 +1706,7 @@
 
                 <div class="form-group">
 
-                    <label>
+                    <label for="filterKaryawan">
                         Saring Karyawan
                     </label>
 
@@ -1984,6 +1976,58 @@
 </main>
 
 
+<!-- =====================================================
+     MOBILE BOTTOM NAVIGATION (APP BAR KHUSUS HP)
+====================================================== -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Navigasi Menu Mobile">
+    <button type="button" class="mobile-nav-item active" data-page="dashboard" onclick="showPage('dashboard', this)">
+        <span class="mobile-nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+            </svg>
+        </span>
+        <span class="mobile-nav-label">Dasbor</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-page="karyawan" onclick="showPage('karyawan', this)">
+        <span class="mobile-nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+            <span class="mobile-nav-badge" id="mobileNavKaryawanCount">-</span>
+        </span>
+        <span class="mobile-nav-label">Karyawan</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-page="planning" onclick="showPage('planning', this)">
+        <span class="mobile-nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <span class="mobile-nav-badge highlight" id="mobileNavPlanningCount">-</span>
+        </span>
+        <span class="mobile-nav-label">Rencana</span>
+    </button>
+    <button type="button" class="mobile-nav-item" data-page="laporan" onclick="showPage('laporan', this)">
+        <span class="mobile-nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+        </span>
+        <span class="mobile-nav-label">Laporan</span>
+    </button>
+</nav>
+
+
 
 <!-- =====================================================
      MODAL PENALTI
@@ -2033,7 +2077,7 @@
 
             <div class="form-group">
 
-                <label>
+                <label for="penaltyKaryawanNama">
                     Karyawan
                 </label>
 
@@ -2051,7 +2095,7 @@
                 style="margin-top:16px;"
             >
 
-                <label>
+                <label for="tanggalPenalti">
                     Tanggal Penalti
                     <span style="color:#d71920;font-weight:800;">
                         *
@@ -2072,7 +2116,7 @@
                 style="margin-top:16px;"
             >
 
-                <label>
+                <label for="alasanPenalti">
 
                     Alasan Penalti
 
@@ -2225,7 +2269,7 @@
                 style="margin-bottom:16px;"
             >
 
-                <label>
+                <label for="editIdKaryawan">
                     ID / NIK Karyawan
                     <span style="color:#d71920;font-weight:800;">
                         *
@@ -2251,7 +2295,7 @@
                 style="margin-bottom:16px;"
             >
 
-                <label>
+                <label for="editNamaKaryawan">
                     Nama Karyawan
                     <span style="color:#d71920;font-weight:800;">
                         *
@@ -2274,7 +2318,7 @@
                 style="margin-bottom:16px;"
             >
 
-                <label>
+                <label for="editTanggalLahirKaryawan">
                     Tanggal Lahir (Opsional)
                 </label>
 
@@ -2397,7 +2441,7 @@
 
                 <div class="form-group">
 
-                    <label>
+                    <label for="tanggal">
                         Tanggal
                     </label>
 
@@ -2414,7 +2458,7 @@
 
                 <div class="form-group">
 
-                    <label>
+                    <label for="durasiPlanning">
                         Durasi
                     </label>
 
@@ -2432,7 +2476,7 @@
 
                 <div class="form-group">
 
-                    <label>
+                    <label for="jenisLembur">
                         Jenis Lembur
                     </label>
 
@@ -2459,7 +2503,7 @@
 
                 <div class="form-group">
 
-                    <label>
+                    <label for="jamMulai">
                         Jam Mulai
                     </label>
 
@@ -2477,7 +2521,7 @@
 
                 <div class="form-group">
 
-                    <label>
+                    <label for="jamSelesai">
                         Jam Selesai
                     </label>
 
@@ -2495,7 +2539,7 @@
 
                 <div class="form-group full">
 
-                    <label>
+                    <label for="keterangan">
                         Keterangan
                     </label>
 
@@ -2511,9 +2555,9 @@
 
                 <div class="form-group full">
 
-                    <label>
+                    <span class="form-label">
                         Pilih Karyawan
-                    </label>
+                    </span>
 
 
                     <div class="planning-tools">
@@ -2663,12 +2707,12 @@
 <!-- =====================================================
      JAVASCRIPT
 ====================================================== -->
-<script src="env.js?v=20261014-v3"></script>
+<script src="env.js?v=20261016-v10"></script>
 <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-<script src="database.js?v=20261014-v3"></script>
-<script src="karyawan.js?v=20261014-v3"></script>
-<script src="lembur.js?v=20261014-v3"></script>
-<script src="app.js?v=20261014-v3"></script>
+<script src="database.js?v=20261016-v10"></script>
+<script src="karyawan.js?v=20261016-v10"></script>
+<script src="lembur.js?v=20261016-v10"></script>
+<script src="app.js?v=20261016-v10"></script>
 
 
 </body>

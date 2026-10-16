@@ -66,9 +66,16 @@
         }
     }
 
+    function getSupabaseClient() {
+        return window.supabaseClient ||
+            (typeof supabaseClient !== "undefined" && supabaseClient ? supabaseClient : null) ||
+            (window.PlanburAPI && typeof window.PlanburAPI.getClient === "function" ? window.PlanburAPI.getClient() : null);
+    }
+
     async function uploadPlanningPreview(idPlanning, blob) {
-        if (!supabaseClient) {
-            throw new Error("Koneksi Supabase belum tersedia.");
+        const client = getSupabaseClient();
+        if (!client) {
+            return null;
         }
 
         if (!(blob instanceof Blob) || blob.size <= 0) {
@@ -85,7 +92,7 @@
 
         const previewBucket = "planning-bukti";
         const filePath = `${safeId}/preview/${Date.now()}-SPL_${safeId}.png`;
-        const { error: uploadError } = await supabaseClient.storage
+        const { error: uploadError } = await client.storage
             .from(previewBucket)
             .upload(filePath, blob, {
                 upsert: false,
@@ -97,7 +104,7 @@
             throw uploadError;
         }
 
-        const { data: publicData } = supabaseClient.storage
+        const { data: publicData } = client.storage
             .from(previewBucket)
             .getPublicUrl(filePath);
 
@@ -106,7 +113,7 @@
         }
 
         const previewUrl = publicData.publicUrl;
-        const { error: updateError } = await supabaseClient
+        const { error: updateError } = await client
             .from("planning_lembur")
             .update({ preview_url: previewUrl })
             .eq("kode_planning", idPlanning);
@@ -509,22 +516,28 @@
 
     function getKaryawanAktif() {
 
-        if (!Array.isArray(karyawan)) {
+        let list = [];
+        if (typeof getKaryawan === "function") {
+            list = getKaryawan();
+        } else if (Array.isArray(window.karyawan) && window.karyawan.length > 0) {
+            list = window.karyawan;
+        } else if (Array.isArray(window.karyawanData) && window.karyawanData.length > 0) {
+            list = window.karyawanData;
+        } else if (typeof karyawan !== "undefined" && Array.isArray(karyawan)) {
+            list = karyawan;
+        }
+
+        if (!Array.isArray(list)) {
             return [];
         }
 
-        return karyawan.filter(function (item) {
-
-            const status = normalizePlanningSearch(
-                item?.status || "Aktif"
-            );
-
-            return ![
-                "penalti",
-                "nonaktif",
-                "resign"
-            ].includes(status);
-
+        // Tampilkan seluruh karyawan dari database (hanya saring yang dihapus)
+        return list.filter(function (item) {
+            if (!item) return false;
+            if (item.isDeleted || item.is_deleted) return false;
+            const status = normalizePlanningSearch(item?.status || "");
+            if (status === "deleted") return false;
+            return true;
         });
 
     }
@@ -1563,6 +1576,7 @@
     ===================================================== */
 
     const search =
+        planningEl("planningSearchKaryawan") ||
         planningEl("planningKaryawanSearch");
 
 
@@ -2006,10 +2020,7 @@
         })
         .filter(function (k) {
 
-            if (!k.canSelect) {
-                return false;
-            }
-
+            // JANGAN sembunyikan karyawan! Tampilkan seluruh karyawan dari database
             if (!keyword) {
                 return true;
             }
@@ -2050,6 +2061,12 @@
     container.innerHTML =
         data.map(function (k) {
 
+            const isWarning = !k.canSelect;
+            const remainingHours = (k.remaining / 60).toFixed(1);
+            const subText = isWarning
+                ? `<div style="font-size:11px;color:#d71920;font-weight:600;">⚠️ Peringatan jam lembur: ${(k.weeklyUsed / 60).toFixed(1)}/16 jam</div>`
+                : `<div style="font-size:11px;color:#16803d;">Sisa pola ini: ${remainingHours} jam</div>`;
+
             return `
                 <label
                     class="planning-karyawan-item"
@@ -2088,9 +2105,7 @@
                             ${escapePlanningHTML(k.id)}
                         </div>
 
-                        <div style="font-size:11px;color:#16803d;">
-                            Sisa pola ini: ${(k.remaining / 60).toFixed(1)} jam
-                        </div>
+                        ${subText}
                     </div>
 
                 </label>
@@ -2834,12 +2849,17 @@
             if (elKaryawan) elKaryawan.textContent = String(uniqueKaryawan.size);
 
             const navPlan = document.getElementById("navPlanningCount");
+            const mobNavPlan = document.getElementById("mobileNavPlanningCount");
             if (navPlan) navPlan.textContent = String(totalRencana);
+            if (mobNavPlan) mobNavPlan.textContent = String(totalRencana);
 
             const navKar = document.getElementById("navKaryawanCount");
-            if (navKar && typeof window.karyawan !== "undefined") {
+            const mobNavKar = document.getElementById("mobileNavKaryawanCount");
+            if (typeof window.karyawan !== "undefined") {
                 const aktifCount = Array.isArray(window.karyawan) ? window.karyawan.filter(k => k.status !== "PENALTI" && !k.isDeleted).length : 0;
-                navKar.textContent = String(aktifCount || window.karyawan.length);
+                const karStr = String(aktifCount || window.karyawan.length);
+                if (navKar) navKar.textContent = karStr;
+                if (mobNavKar) mobNavKar.textContent = karStr;
             }
         } catch (err) {
             console.warn("Gagal update planning summary cards:", err);
@@ -7946,6 +7966,9 @@ function initPlanningFilters() {
         }
         if (typeof updateKaryawanDropdown === "function") {
             updateKaryawanDropdown();
+        }
+        if (typeof renderPlanningKaryawan === "function") {
+            renderPlanningKaryawan("");
         }
     }
 

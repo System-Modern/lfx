@@ -54,6 +54,12 @@ try {
                 SUPABASE_ANON_KEY
             );
 
+        window.supabaseClient = supabaseClient;
+
+        if (window.PlanburAPI && typeof window.PlanburAPI.setClient === "function") {
+            window.PlanburAPI.setClient(supabaseClient);
+        }
+
         console.log(
             "Supabase client berhasil dibuat."
         );
@@ -86,6 +92,21 @@ let planning = [];
 
 window.karyawan = karyawan;
 window.planning = planning;
+
+try {
+    Object.defineProperty(window, "karyawanData", {
+        get() {
+            return Array.isArray(window.karyawan) ? window.karyawan : (Array.isArray(karyawan) ? karyawan : []);
+        },
+        set(val) {
+            window.karyawan = val;
+            karyawan = val;
+        },
+        configurable: true
+    });
+} catch (e) {
+    window.karyawanData = window.karyawan;
+}
 
 
 /* =====================================================
@@ -251,9 +272,21 @@ function normalisasiKaryawanData(data) {
                 false
             );
 
+            const kode_karyawan =
+                normalizeId(
+                    item.kode_karyawan ??
+                    item.id
+                );
+
+            const nik = kode_karyawan;
+
             return {
 
                 id,
+
+                kode_karyawan,
+
+                nik,
 
                 nama,
 
@@ -387,7 +420,7 @@ async function loadKaryawanSupabase() {
 
     }
 
-    return normalisasiKaryawanData(data);
+    return normalisasiKaryawanDatabase(data);
 
 }
 
@@ -603,6 +636,20 @@ function bentukDataPlanning(
 
                             id:
                                 normalizeId(
+                                    data.id
+                                ),
+
+                            nik:
+                                normalizeId(
+                                    data.nik ??
+                                    data.kode_karyawan ??
+                                    data.id
+                                ),
+
+                            kode_karyawan:
+                                normalizeId(
+                                    data.kode_karyawan ??
+                                    data.nik ??
                                     data.id
                                 ),
 
@@ -895,6 +942,7 @@ async function loadDatabase() {
             cloneData(
                 karyawan
             );
+        window.databaseKaryawanSnapshot = databaseKaryawanSnapshot;
 
 
         /* =============================================
@@ -1084,6 +1132,11 @@ function refreshUI() {
 ===================================================== */
 
 function getKaryawan() {
+
+    if (Array.isArray(window.karyawan)) {
+        karyawan = window.karyawan;
+        return window.karyawan;
+    }
 
     return isArray(karyawan)
         ? karyawan
@@ -1463,7 +1516,7 @@ async function simpanKaryawanSupabase() {
 
 
         /* =============================================
-           HAPUS DATA (SOFT DELETE AGAR PLANNING AMAN)
+           HAPUS DATA KARYAWAN DARI SUPABASE
         ============================================= */
 
         if (
@@ -1474,36 +1527,70 @@ async function simpanKaryawanSupabase() {
                 .filter(Boolean);
 
             if (deletedIds.length > 0) {
-                try {
-                    let { error } = await supabaseClient
-                        .from("karyawan")
-                        .update({
-                            is_deleted: true,
-                            status: "NONAKTIF"
-                        })
-                        .in("kode_karyawan", deletedIds);
+                // Periksa apakah karyawan pernah ikut lembur (planning)
+                const currentPlannings = typeof getPlanning === "function" ? getPlanning() : (window.planning || []);
+                const idsWithPlanning = new Set();
+                
+                currentPlannings.forEach(p => {
+                    if (Array.isArray(p.karyawan)) {
+                        p.karyawan.forEach(k => {
+                            const kid = normalizeId(k.id);
+                            if (kid) idsWithPlanning.add(kid);
+                        });
+                    }
+                });
 
-                    if (error) {
-                        // Fallback jika kolom is_deleted belum ada
-                        await supabaseClient
+                const idsToHardDelete = deletedIds.filter(id => !idsWithPlanning.has(id));
+                const idsToSoftDelete = deletedIds.filter(id => idsWithPlanning.has(id));
+
+                // 1. Karyawan tanpa riwayat planning: HAPUS PERMANEN dari tabel
+                if (idsToHardDelete.length > 0) {
+                    try {
+                        const { error: hardDelError } = await supabaseClient
+                            .from("karyawan")
+                            .delete()
+                            .in("kode_karyawan", idsToHardDelete);
+
+                        if (hardDelError) {
+                            console.warn("Batch hard-delete karyawan gagal, beralih ke soft-delete:", hardDelError);
+                            idsToSoftDelete.push(...idsToHardDelete);
+                        } else {
+                            console.log(`Berhasil hard-delete ${idsToHardDelete.length} karyawan dari Supabase.`);
+                        }
+                    } catch (err) {
+                        console.warn("Exception hard-delete, fallback ke soft-delete:", err);
+                        idsToSoftDelete.push(...idsToHardDelete);
+                    }
+                }
+
+                // 2. Karyawan dengan riwayat planning: SOFT DELETE (is_deleted: true)
+                // PENTING: JANGAN ubah status ke 'NONAKTIF' karena ada constraint karyawan_status_check
+                if (idsToSoftDelete.length > 0) {
+                    const uniqueSoftIds = Array.from(new Set(idsToSoftDelete));
+                    try {
+                        const { error: softDelError } = await supabaseClient
                             .from("karyawan")
                             .update({
-                                status: "NONAKTIF"
+                                is_deleted: true
                             })
-                            .in("kode_karyawan", deletedIds);
+                            .in("kode_karyawan", uniqueSoftIds);
+
+                        if (softDelError) {
+                            console.warn("Batch soft-delete gagal, mencoba per karyawan:", softDelError);
+                            for (const id of uniqueSoftIds) {
+                                try {
+                                    await supabaseClient
+                                        .from("karyawan")
+                                        .update({ is_deleted: true })
+                                        .eq("kode_karyawan", id);
+                                } catch (_) {}
+                            }
+                        } else {
+                            console.log(`Berhasil soft-delete ${uniqueSoftIds.length} karyawan di Supabase.`);
+                        }
+                    } catch (errSoft) {
+                        console.error("Gagal soft-delete karyawan:", errSoft);
                     }
-                } catch (delError) {
-                    console.warn("Gagal batch soft-delete karyawan, fallback ke individual:", delError);
-                    await Promise.all(
-                        deletedIds.map(async id => {
-                            try {
-                                await supabaseClient
-                                    .from("karyawan")
-                                    .update({ status: "NONAKTIF" })
-                                    .eq("kode_karyawan", id);
-                            } catch (_) {}
-                        })
-                    );
                 }
             }
         }
@@ -2515,6 +2602,7 @@ async function simpanData() {
         cloneData(
             getKaryawan()
         );
+    window.databaseKaryawanSnapshot = databaseKaryawanSnapshot;
 
     databasePlanningSnapshot =
         cloneData(
