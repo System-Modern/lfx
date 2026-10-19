@@ -462,6 +462,10 @@
     }
 
     async function deletePlanningEvidence(id, button) {
+        if (!confirm("Yakin ingin menghapus file bukti lembur ini?")) {
+            return;
+        }
+
         localStorage.removeItem(getPlanningEvidenceKey(id));
         const planningItem = findPlanningById(id);
         const evidenceUrl = planningItem?.buktiUrl || "";
@@ -493,7 +497,7 @@
             }
         }
 
-                if (planningItem) {
+        if (planningItem) {
             planningItem.buktiUrl = "";
             planningItem.buktiNama = "";
         }
@@ -504,6 +508,10 @@
             uploadButton.textContent = "↑ Upload";
             uploadButton.classList.remove("has-file");
             uploadButton.title = "Upload File";
+        }
+
+        if (typeof updatePlanningSummaryCards === "function") {
+            updatePlanningSummaryCards();
         }
 
         showPlanningToast("success", "Bukti dihapus", "File bukti berhasil dihapus.");
@@ -2478,11 +2486,9 @@
                 })
                 .filter(Boolean)
             : [];
-        const nomorEmoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
         const daftarNama = daftarKaryawan.length
             ? daftarKaryawan.map(function (nama, index) {
-                const nomor = nomorEmoji[index] || `${index + 1}.`;
-                return `${nomor} ${nama}`;
+                return `${index + 1}. ${nama}`;
             }).join("\n")
             : "- Belum ada karyawan";
 
@@ -2729,19 +2735,7 @@
                 );
             }
 
-                        // Generate preview non-blocking in background
-            cetakPlanningPNG(
-                idPlanning,
-                {
-                    download: false,
-                    savePreview: true,
-                    allowWhileSaving: true,
-                    silent: true
-                }
-            ).catch(function (e) {
-                console.warn("[Background Preview] Gagal:", e);
-            });
-
+            // Gambar hanya dibuat saat user klik Unduh
             renderPlanning();
 
             if (
@@ -4059,7 +4053,7 @@
                         </small>
                     </div>
 
-                    <span class="planning-add-label">
+                    <span class="planning-add-label" onclick="tambahKaryawanPreview()">
                         + Tambah Karyawan
                     </span>
 
@@ -4775,18 +4769,20 @@
                 "planningPreviewModal"
             );
 
-        if (!modal) {
-            return;
+        if (modal) {
+            modal.classList.remove(
+                "active"
+            );
+            modal.style.display =
+                "none";
         }
 
-        modal.classList.remove(
-            "active"
-        );
-
-        modal.style.display =
-            "none";
-
         PlanningState.previewId = null;
+        planningCRUDLoading = false;
+
+        try {
+            hidePlanningLoading();
+        } catch (e) {}
 
     }
 
@@ -5075,19 +5071,7 @@
                 );
             }
 
-                        // Update preview non-blocking in background
-            cetakPlanningPNG(
-                idPlanning,
-                {
-                    download: false,
-                    savePreview: true,
-                    allowWhileSaving: true,
-                    silent: true
-                }
-            ).catch(function (e) {
-                console.warn("[Background Preview Update] Gagal:", e);
-            });
-
+            // Gambar hanya dibuat saat user klik Unduh (tidak dibuat saat Ubah/Simpan)
             renderPlanning();
 
             if (
@@ -5151,7 +5135,8 @@
             return;
         }
 
-        if (!Array.isArray(planning)) {
+        const idTarget = String(idPlanning ?? "").trim();
+        if (!idTarget) {
             return;
         }
 
@@ -5164,25 +5149,16 @@
             return;
         }
 
-        const index =
-            planning.findIndex(function (item) {
-
-                return getPlanningId(item) ===
-                    String(idPlanning);
-
-            });
-
-        if (index === -1) {
-
+        const item = findPlanningById(idTarget);
+        if (!item) {
             alert(
                 "Data planning tidak ditemukan."
             );
-
             return;
         }
 
-        const dataLama =
-            planning[index];
+        const kodePlanning = String(item.kode_planning || item.idPlanning || idTarget).trim();
+        let databaseId = item.databaseId || (Number.isInteger(Number(item.id)) ? Number(item.id) : null);
 
         planningCRUDLoading = true;
 
@@ -5190,34 +5166,139 @@
             "Menghapus planning..."
         );
 
-        planning.splice(
-            index,
-            1
-        );
-
         try {
 
-            const result =
-                await simpanPlanningCRUD();
+            // 1. HAPUS DARI SUPABASE (RELASI & PARENT)
+            if (typeof supabaseClient !== "undefined" && supabaseClient) {
+                // Pastikan databaseId ditemukan dari Supabase jika belum tersedia
+                if (!databaseId && kodePlanning) {
+                    try {
+                        const { data: dbItem } = await supabaseClient
+                            .from("planning_lembur")
+                            .select("id")
+                            .eq("kode_planning", kodePlanning)
+                            .maybeSingle();
+                        if (dbItem && dbItem.id) {
+                            databaseId = dbItem.id;
+                        }
+                    } catch (_) {}
+                }
 
-            if (result === false) {
-                throw new Error(
-                    "Database gagal menghapus planning."
-                );
+                // Hapus relasi planning_karyawan dulu agar terhindar dari foreign key constraint
+                if (databaseId) {
+                    try {
+                        await supabaseClient
+                            .from("planning_karyawan")
+                            .delete()
+                            .eq("planning_id", databaseId);
+                    } catch (eRel) {
+                        console.warn("[Hapus Planning] Gagal hapus planning_karyawan:", eRel);
+                    }
+                }
+
+                // Hapus planning_lembur langsung
+                let deletedFromDB = false;
+                if (kodePlanning) {
+                    const { error: errKode } = await supabaseClient
+                        .from("planning_lembur")
+                        .delete()
+                        .eq("kode_planning", kodePlanning);
+                    if (!errKode) {
+                        deletedFromDB = true;
+                    } else {
+                        console.warn("[Hapus Planning] Delete by kode_planning gagal, mencoba ID:", errKode);
+                    }
+                }
+
+                if (!deletedFromDB && databaseId) {
+                    const { error: errId } = await supabaseClient
+                        .from("planning_lembur")
+                        .delete()
+                        .eq("id", databaseId);
+                    if (!errId) {
+                        deletedFromDB = true;
+                    } else {
+                        console.error("[Hapus Planning] Delete by databaseId gagal:", errId);
+                        throw errId;
+                    }
+                }
+
+                // Hapus file bukti & preview di storage jika ada
+                const fileUrls = [
+                    item.buktiUrl || item.bukti_url,
+                    item.previewUrl || item.preview_url
+                ].filter(Boolean);
+
+                for (const fileUrl of fileUrls) {
+                    try {
+                        const marker = "/storage/v1/object/public/planning-bukti/";
+                        const markerIndex = fileUrl.indexOf(marker);
+                        if (markerIndex !== -1) {
+                            const filePath = decodeURIComponent(fileUrl.slice(markerIndex + marker.length));
+                            await supabaseClient.storage.from("planning-bukti").remove([filePath]);
+                        }
+                    } catch (eStore) {
+                        console.warn("[Hapus Planning] Storage remove error:", eStore);
+                    }
+                }
             }
 
+            // 2. HAPUS DARI MEMORI LOKAL
+            const matchesTarget = function (p) {
+                if (!p) return false;
+                const pKode = String(p.kode_planning || p.idPlanning || "").trim().toLowerCase();
+                const pId = String(p.id || p.databaseId || "").trim().toLowerCase();
+                const targetLower = idTarget.toLowerCase();
+                const kodeLower = kodePlanning.toLowerCase();
+
+                if (pKode && (pKode === targetLower || pKode === kodeLower)) return true;
+                if (pId && (pId === targetLower || (databaseId && pId === String(databaseId).toLowerCase()))) return true;
+                if (databaseId && (p.databaseId === databaseId || p.id === databaseId)) return true;
+                return false;
+            };
+
+            if (typeof planning !== "undefined" && Array.isArray(planning)) {
+                planning = planning.filter(p => !matchesTarget(p));
+            }
+            if (Array.isArray(window.planning)) {
+                window.planning = window.planning.filter(p => !matchesTarget(p));
+            }
+            if (typeof databasePlanningSnapshot !== "undefined" && Array.isArray(databasePlanningSnapshot)) {
+                databasePlanningSnapshot = databasePlanningSnapshot.filter(p => !matchesTarget(p));
+            }
+            if (Array.isArray(window.databasePlanningSnapshot)) {
+                window.databasePlanningSnapshot = window.databasePlanningSnapshot.filter(p => !matchesTarget(p));
+            }
+
+            // 3. BERSIHKAN LOCALSTORAGE & CACHE
+            localStorage.removeItem(getPlanningEvidenceKey(idTarget));
+            if (kodePlanning) {
+                localStorage.removeItem(getPlanningEvidenceKey(kodePlanning));
+            }
+            if (typeof planningPreviewBlobCache !== "undefined" && planningPreviewBlobCache) {
+                planningPreviewBlobCache.delete(idTarget);
+                if (kodePlanning) planningPreviewBlobCache.delete(kodePlanning);
+            }
+            if (typeof planningEvidenceCache !== "undefined" && planningEvidenceCache) {
+                planningEvidenceCache.delete(idTarget);
+                if (kodePlanning) planningEvidenceCache.delete(kodePlanning);
+            }
+
+            // 4. RE-RENDER UI
             renderPlanning();
 
-            if (
-                typeof updateDashboard === "function"
-            ) {
+            if (typeof updatePlanningSummaryCards === "function") {
+                updatePlanningSummaryCards();
+            }
+
+            if (typeof updateDashboard === "function") {
                 updateDashboard();
             }
 
             showPlanningToast(
                 "success",
                 "Planning berhasil dihapus",
-                "Data planning telah berhasil dihapus."
+                "Data planning telah berhasil dihapus dari sistem dan database."
             );
 
         } catch (error) {
@@ -5227,16 +5308,10 @@
                 error
             );
 
-            planning.splice(
-                index,
-                0,
-                dataLama
-            );
-
             showPlanningToast(
                 "error",
                 "Planning gagal dihapus",
-                "Data dikembalikan karena proses penghapusan gagal."
+                error?.message || "Terjadi kesalahan saat menghapus planning."
             );
 
         } finally {
@@ -5910,6 +5985,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 }) || null;
             }
 
+            const employeeIdVal = String(data.karyawan_id || data.karyawanId || "").trim().toLowerCase();
             const idVal = String(data.id || data.idKaryawan || data.databaseId || "").trim().toLowerCase();
             const codeVal = String(data.kode_karyawan || data.nik || data.NIK || "").trim().toLowerCase();
             const namaVal = String(data.nama || data.namaKaryawan || "").trim().toLowerCase();
@@ -5919,6 +5995,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 const mId = String(m.id || m.databaseId || "").trim().toLowerCase();
                 const mNama = String(m.nama || "").trim().toLowerCase();
 
+                if (employeeIdVal && (mId === employeeIdVal || mCode === employeeIdVal)) return true;
                 if (codeVal && (mCode === codeVal || mId === codeVal)) return true;
                 if (idVal && (mId === idVal || mCode === idVal)) return true;
                 if (namaVal && mNama === namaVal) return true;
@@ -6044,109 +6121,38 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
             daftarKaryawan.map(
                 function(dataKaryawan) {
 
-                    let data =
-                        dataKaryawan;
-
-
-                    const master =
-                        findMasterKaryawan(data);
-
-
-                    if (
-                        master &&
-                        typeof data === "object"
-                    ) {
-
-                        data = {
-                            ...master,
-                            ...data
-                        };
-
+                    let data = dataKaryawan;
+                    if (data === null || data === undefined) {
+                        return { nama: "-", nik: "-" };
                     }
 
-                    else if (master) {
+                    const master = findMasterKaryawan(data);
 
-                        data = master;
-
-                    }
-
-
-                    if (
-                        data === null ||
-                        data === undefined
-                    ) {
-
-                        return {
-                            nama: "-",
-                            nik: "-"
-                        };
-
-                    }
-
-
-                    if (
-                        typeof data !== "object"
-                    ) {
-
-                        const masterData =
-                            findMasterKaryawan(data);
-
-
-                        if (masterData) {
-
-                            data =
-                                masterData;
-
-                        }
-
-                        else {
-
+                    if (typeof data !== "object") {
+                        if (master) {
+                            data = master;
+                        } else {
                             return {
-                                nama: String(data),
-                                nik: String(data)
+                                nama: String(data).trim(),
+                                nik: "-"
                             };
-
                         }
-
                     }
-
 
                     const nama =
-                        data.nama ||
-                        data.namaKaryawan ||
-                        data.nama_lengkap ||
-                        data.name ||
-                        data.fullName ||
-                        data.employeeName ||
-                        data.karyawanNama ||
-                        data.karyawan_nama ||
+                        (data.nama && String(data.nama).trim() !== "" && data.nama !== "-") ? data.nama :
+                        (data.namaKaryawan && String(data.namaKaryawan).trim() !== "" && data.namaKaryawan !== "-") ? data.namaKaryawan :
+                        (master && (master.nama || master.namaKaryawan || master.nama_lengkap)) ||
                         "-";
-
 
                     const nik =
-                        data.nik ||
-                        data.NIK ||
-                        data.kode_karyawan ||
-                        data.kodeKaryawan ||
-                        data.nikKaryawan ||
-                        data.NIKKaryawan ||
-                        data.nik_karyawan ||
-                        data.nip ||
-                        data.NIP ||
-                        data.nomorNik ||
-                        data.noNik ||
-                        data.no_nik ||
-                        data.nomorKaryawan ||
-                        data.nomor_karyawan ||
+                        (data.nik && String(data.nik).trim() !== "" && data.nik !== "-") ? data.nik :
+                        (data.kode_karyawan && String(data.kode_karyawan).trim() !== "" && data.kode_karyawan !== "-") ? data.kode_karyawan :
+                        (data.NIK && String(data.NIK).trim() !== "" && data.NIK !== "-") ? data.NIK :
+                        (master && (master.kode_karyawan || master.nik || master.NIK || master.idKaryawan || master.id)) ||
                         data.idKaryawan ||
-                        data.id_karyawan ||
                         data.employeeId ||
-                        data.employee_id ||
-                        data.employeeID ||
-                        data.id ||
-                        data.ID ||
                         "-";
-
 
                     return {
                         nama: String(nama).trim(),
@@ -6156,23 +6162,16 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 }
             );
 
-
-        const dataKaryawan =
-            karyawanFinal.filter(
-                function(data) {
-
-                    return (
-                        data.nama !== "-" ||
-                        data.nik !== "-"
-                    );
+        const dataKaryawan = karyawanFinal.filter(function(data) {
+            return (
+                data.nama !== "-" ||
+                data.nik !== "-"
+            );
+        });
 
         dataKaryawan.sort(function(a, b) {
             return String(a.nama || "").localeCompare(String(b.nama || ""));
         });
-
-
-                }
-            );
 
 
         if (
@@ -6265,7 +6264,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                     <tr>
 
                         <td style="
-                            width:55px;
+                            width:55px !important;
+                            min-width:55px !important;
+                            max-width:55px !important;
                             padding:${rowPadding}px 6px;
                             text-align:center;
                             background:#f5f5f5;
@@ -6275,7 +6276,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                             font-size:${employeeFontSize}px;
                             font-weight:400;
                             vertical-align:middle;
-                            box-sizing:border-box;
+                            box-sizing:border-box !important;
                             line-height:1.35;
                         ">
                             ${index + 1}
@@ -6283,7 +6284,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                         <td style="
-                            width:350px;
+                            width:380px !important;
+                            min-width:380px !important;
+                            max-width:380px !important;
                             padding:${rowPadding}px 14px;
                             text-align:left;
                             background:#ffffff;
@@ -6293,7 +6296,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                             font-size:${employeeFontSize}px;
                             font-weight:400;
                             vertical-align:middle;
-                            box-sizing:border-box;
+                            box-sizing:border-box !important;
                             line-height:1.35;
                             letter-spacing:.1px;
                             white-space:normal;
@@ -6306,7 +6309,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                         <td style="
-                            width:255px;
+                            width:225px !important;
+                            min-width:225px !important;
+                            max-width:225px !important;
                             padding:${rowPadding}px 14px;
                             text-align:left;
                             background:#f5f5f5;
@@ -6316,7 +6321,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                             font-size:${employeeFontSize}px;
                             font-weight:400;
                             vertical-align:middle;
-                            box-sizing:border-box;
+                            box-sizing:border-box !important;
                             line-height:1.35;
                             letter-spacing:.1px;
                             white-space:normal;
@@ -6380,16 +6385,19 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
         exportContainer.innerHTML = `
 
-            <div style="
+            <div id="linfoxExportWrapper" style="
                 position:relative;
                 width:794px;
                 min-height:1123px;
                 height:auto;
+                display:flex;
+                flex-direction:column;
                 overflow:visible;
                 background:#ffffff;
                 color:#202020;
                 font-family:Arial,Helvetica,sans-serif;
                 box-sizing:border-box;
+                padding-bottom:28px;
             ">
 
 
@@ -6584,31 +6592,34 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                         box-sizing:border-box;
                     ">
 
-                        <table style="
-                            width:660px;
-                            max-width:660px;
-                            border-collapse:collapse;
-                            border-spacing:0;
-                            table-layout:fixed;
+                        <table class="linfox-export-table" style="
+                            width:660px !important;
+                            min-width:660px !important;
+                            max-width:660px !important;
+                            border-collapse:collapse !important;
+                            border-spacing:0 !important;
+                            table-layout:fixed !important;
                             font-family:Arial,Helvetica,sans-serif;
                             font-size:11.5px;
-                            margin:0;
-                            padding:0;
-                            box-sizing:border-box;
+                            margin:0 !important;
+                            padding:0 !important;
+                            box-sizing:border-box !important;
                         ">
 
                             <colgroup>
-                                <col style="width:105px;">
-                                <col style="width:225px;">
-                                <col style="width:105px;">
-                                <col style="width:225px;">
+                                <col style="width:105px !important;">
+                                <col style="width:225px !important;">
+                                <col style="width:105px !important;">
+                                <col style="width:225px !important;">
                             </colgroup>
 
 
                             <tr>
 
                                 <td style="
-                                    width:105px;
+                                    width:105px !important;
+                                    min-width:105px !important;
+                                    max-width:105px !important;
                                     height:44px;
                                     padding:11px 12px;
                                     background:#e5e5e5;
@@ -6616,7 +6627,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:700;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                 ">
                                     ID Planning
@@ -6624,7 +6635,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                 <td style="
-                                    width:225px;
+                                    width:225px !important;
+                                    min-width:225px !important;
+                                    max-width:225px !important;
                                     height:44px;
                                     padding:11px 13px;
                                     background:#ffffff;
@@ -6632,7 +6645,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:600;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                     overflow:hidden;
                                     text-overflow:ellipsis;
@@ -6642,7 +6655,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                 <td style="
-                                    width:105px;
+                                    width:105px !important;
+                                    min-width:105px !important;
+                                    max-width:105px !important;
                                     height:44px;
                                     padding:11px 12px;
                                     background:#e5e5e5;
@@ -6650,7 +6665,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:700;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                 ">
                                     Jam Selesai
@@ -6658,7 +6673,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                 <td style="
-                                    width:225px;
+                                    width:225px !important;
+                                    min-width:225px !important;
+                                    max-width:225px !important;
                                     height:44px;
                                     padding:11px 13px;
                                     background:#ffffff;
@@ -6666,7 +6683,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:600;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                     overflow:hidden;
                                     text-overflow:ellipsis;
@@ -6680,7 +6697,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                             <tr>
 
                                 <td style="
-                                    width:105px;
+                                    width:105px !important;
+                                    min-width:105px !important;
+                                    max-width:105px !important;
                                     height:44px;
                                     padding:11px 12px;
                                     background:#e5e5e5;
@@ -6688,7 +6707,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:700;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                 ">
                                     Tanggal
@@ -6696,7 +6715,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                 <td style="
-                                    width:225px;
+                                    width:225px !important;
+                                    min-width:225px !important;
+                                    max-width:225px !important;
                                     height:44px;
                                     padding:11px 13px;
                                     background:#ffffff;
@@ -6704,7 +6725,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:600;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                     overflow:hidden;
                                     text-overflow:ellipsis;
@@ -6714,7 +6735,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                 <td style="
-                                    width:105px;
+                                    width:105px !important;
+                                    min-width:105px !important;
+                                    max-width:105px !important;
                                     height:44px;
                                     padding:11px 12px;
                                     background:#e5e5e5;
@@ -6722,7 +6745,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:700;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                 ">
                                     Durasi
@@ -6730,7 +6753,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                 <td style="
-                                    width:225px;
+                                    width:225px !important;
+                                    min-width:225px !important;
+                                    max-width:225px !important;
                                     height:44px;
                                     padding:11px 13px;
                                     background:#ffffff;
@@ -6738,7 +6763,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:600;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                     overflow:hidden;
                                     text-overflow:ellipsis;
@@ -6752,7 +6777,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                             <tr>
 
                                 <td style="
-                                    width:105px;
+                                    width:105px !important;
+                                    min-width:105px !important;
+                                    max-width:105px !important;
                                     height:44px;
                                     padding:11px 12px;
                                     background:#e5e5e5;
@@ -6760,7 +6787,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:700;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                 ">
                                     Jam Mulai
@@ -6768,7 +6795,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                 <td style="
-                                    width:225px;
+                                    width:225px !important;
+                                    min-width:225px !important;
+                                    max-width:225px !important;
                                     height:44px;
                                     padding:11px 13px;
                                     background:#ffffff;
@@ -6776,7 +6805,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:600;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                     overflow:hidden;
                                     text-overflow:ellipsis;
@@ -6786,7 +6815,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                 <td style="
-                                    width:105px;
+                                    width:105px !important;
+                                    min-width:105px !important;
+                                    max-width:105px !important;
                                     height:44px;
                                     padding:11px 12px;
                                     background:#e5e5e5;
@@ -6794,7 +6825,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:700;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:nowrap;
                                 ">
                                     Jenis Lembur
@@ -6802,7 +6833,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                 <td style="
-                                    width:225px;
+                                    width:225px !important;
+                                    min-width:225px !important;
+                                    max-width:225px !important;
                                     height:44px;
                                     padding:11px 13px;
                                     background:#ffffff;
@@ -6810,7 +6843,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                     border:1px solid #d2d2d2;
                                     font-weight:600;
                                     vertical-align:middle;
-                                    box-sizing:border-box;
+                                    box-sizing:border-box !important;
                                     white-space:normal;
                                     overflow-wrap:anywhere;
                                     line-height:1.35;
@@ -6875,30 +6908,32 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                         box-sizing:border-box;
                     ">
 
-                        <table style="
-                            width:660px;
-                            max-width:660px;
-                            border-collapse:collapse;
-                            border-spacing:0;
-                            table-layout:fixed;
+                        <table class="linfox-export-table" style="
+                            width:660px !important;
+                            min-width:660px !important;
+                            max-width:660px !important;
+                            border-collapse:collapse !important;
+                            border-spacing:0 !important;
+                            table-layout:fixed !important;
                             font-family:Arial,Helvetica,sans-serif;
                             font-size:${employeeFontSize}px;
-                            margin:0;
-                            padding:0;
+                            margin:0 !important;
+                            padding:0 !important;
+                            box-sizing:border-box !important;
                         ">
 
                             <colgroup>
 
                                 <col style="
-                                    width:55px;
+                                    width:55px !important;
                                 ">
 
                                 <col style="
-                                    width:350px;
+                                    width:380px !important;
                                 ">
 
                                 <col style="
-                                    width:255px;
+                                    width:225px !important;
                                 ">
 
                             </colgroup>
@@ -6909,7 +6944,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                 <tr>
 
                                     <th style="
-                                        width:55px;
+                                        width:55px !important;
+                                        min-width:55px !important;
+                                        max-width:55px !important;
                                         padding:${headerPadding}px 6px;
                                         background:#202020;
                                         color:rgb(247,244,15);
@@ -6917,7 +6954,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                         text-align:center;
                                         font-size:${employeeFontSize}px;
                                         font-weight:800;
-                                        box-sizing:border-box;
+                                        box-sizing:border-box !important;
                                         line-height:1.3;
                                     ">
                                         NO
@@ -6925,7 +6962,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                     <th style="
-                                        width:350px;
+                                        width:380px !important;
+                                        min-width:380px !important;
+                                        max-width:380px !important;
                                         padding:${headerPadding}px 14px;
                                         background:#202020;
                                         color:rgb(247,244,15);
@@ -6933,7 +6972,7 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                         text-align:left;
                                         font-size:${employeeFontSize}px;
                                         font-weight:800;
-                                        box-sizing:border-box;
+                                        box-sizing:border-box !important;
                                         line-height:1.3;
                                     ">
                                         NAMA KARYAWAN
@@ -6941,7 +6980,9 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                                     <th style="
-                                        width:255px;
+                                        width:225px !important;
+                                        min-width:225px !important;
+                                        max-width:225px !important;
                                         padding:${headerPadding}px 14px;
                                         background:#202020;
                                         color:rgb(247,244,15);
@@ -6949,10 +6990,10 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                                         text-align:left;
                                         font-size:${employeeFontSize}px;
                                         font-weight:800;
-                                        box-sizing:border-box;
+                                        box-sizing:border-box !important;
                                         line-height:1.3;
                                     ">
-                                        ID KARYAWAN
+                                        NIK
                                     </th>
 
                                 </tr>
@@ -7035,8 +7076,8 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 ================================================= -->
 
                 <div style="
-                    width:590px;
-                    margin:34px auto 0;
+                    width:600px;
+                    margin:36px auto 0;
                     display:flex;
                     justify-content:space-between;
                     text-align:center;
@@ -7045,35 +7086,37 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                     <div style="
-                        width:190px;
+                        width:210px;
                         font-family:Arial,Helvetica,sans-serif;
-                        font-size:11px;
-                        color:#666666;
+                        font-size:11.5px;
+                        color:#333333;
                     ">
 
                         <div style="
-                            font-weight:600;
+                            font-weight:700;
                             margin-bottom:8px;
+                            color:#202020;
                         ">
                             Mengetahui,
                         </div>
 
 
                         <div style="
-                            height:52px;
+                            height:58px;
                         "></div>
 
 
                         <div style="
-                            border-bottom:1px solid #999999;
+                            border-bottom:1.5px solid #202020;
                             width:100%;
                         "></div>
 
 
                         <div style="
-                            margin-top:7px;
-                            font-size:10px;
-                            color:#888888;
+                            margin-top:8px;
+                            font-size:10.5px;
+                            font-weight:700;
+                            color:#555555;
                         ">
                             Supervisor / Atasan
                         </div>
@@ -7082,35 +7125,37 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
                     <div style="
-                        width:190px;
+                        width:210px;
                         font-family:Arial,Helvetica,sans-serif;
-                        font-size:11px;
-                        color:#666666;
+                        font-size:11.5px;
+                        color:#333333;
                     ">
 
                         <div style="
-                            font-weight:600;
+                            font-weight:700;
                             margin-bottom:8px;
+                            color:#202020;
                         ">
                             Dibuat oleh,
                         </div>
 
 
                         <div style="
-                            height:52px;
+                            height:58px;
                         "></div>
 
 
                         <div style="
-                            border-bottom:1px solid #999999;
+                            border-bottom:1.5px solid #202020;
                             width:100%;
                         "></div>
 
 
                         <div style="
-                            margin-top:7px;
-                            font-size:10px;
-                            color:#888888;
+                            margin-top:8px;
+                            font-size:10.5px;
+                            font-weight:700;
+                            color:#555555;
                         ">
                             PIC Planning
                         </div>
@@ -7126,20 +7171,17 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                 ================================================= -->
 
                 <div style="
-                    position:absolute;
-                    left:67px;
-                    right:67px;
-                    bottom:17px;
-                    height:31px;
-                    border-top:2px solid rgb(247,244,15);
+                    margin:40px 67px 0 67px;
+                    padding-top:14px;
+                    border-top:1px solid #d4d4d4;
                     display:flex;
-                    align-items:flex-end;
+                    align-items:center;
                     justify-content:space-between;
-                    padding-top:8px;
                     box-sizing:border-box;
                     font-family:Arial,Helvetica,sans-serif;
-                    font-size:9px;
-                    color:#888888;
+                    font-size:9.5px;
+                    color:#777777;
+                    font-weight:600;
                 ">
 
                     <span>
@@ -7583,26 +7625,11 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
         try {
-
-            setTimeout(
-                function() {
-
-                    try {
-                        hidePlanningLoading();
-                    }
-
-                    catch (e) {}
-
-                },
-                300
-            );
-
+            hidePlanningLoading();
         }
-
         catch (e) {}
 
-
-        planningCRUDLoading = previousLoadingState;
+        planningCRUDLoading = false;
 
     }
 
@@ -7898,9 +7925,25 @@ function initPlanningFilters() {
     }
 
     window.renderPlanning = renderPlanning;
+    window.hapusPlanning = hapusPlanning;
+    window.previewPlanning = previewPlanning;
+    window.closePreviewPlanning = closePreviewPlanning;
+    window.simpanEditPlanning = simpanEditPlanning;
+    if (typeof tambahKaryawanPreview === "function") {
+        window.tambahKaryawanPreview = tambahKaryawanPreview;
+    }
+    if (typeof hapusKaryawanPreview === "function") {
+        window.hapusKaryawanPreview = hapusKaryawanPreview;
+    }
     if (typeof openPlanningModal === "function") {
         window.openPlanningModal = openPlanningModal;
     }
+
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+            closePreviewPlanning();
+        }
+    });
 
     document.addEventListener("databaseReady", syncAndRenderPlanning);
 

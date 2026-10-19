@@ -2480,8 +2480,22 @@ async function simpanPlanningSupabase() {
 
         if (deletedPlanning.length > 0) {
             const deletedKodes = deletedPlanning
-                .map(item => String(item.idPlanning ?? item.id ?? "").trim())
+                .map(item => String(item.kode_planning ?? item.idPlanning ?? item.id ?? "").trim())
                 .filter(Boolean);
+            const deletedDbIds = deletedPlanning
+                .map(item => item.databaseId || (Number.isInteger(Number(item.id)) ? Number(item.id) : null))
+                .filter(Boolean);
+
+            if (deletedDbIds.length > 0) {
+                try {
+                    await supabaseClient
+                        .from("planning_karyawan")
+                        .delete()
+                        .in("planning_id", deletedDbIds);
+                } catch (eRel) {
+                    console.warn("Gagal delete batch planning_karyawan:", eRel);
+                }
+            }
 
             if (deletedKodes.length > 0) {
                 const { error } = await supabaseClient
@@ -2490,7 +2504,13 @@ async function simpanPlanningSupabase() {
                     .in("kode_planning", deletedKodes);
 
                 if (error) {
-                    console.error("Gagal batch delete planning:", error);
+                    console.error("Gagal batch delete planning by kode_planning:", error);
+                    if (deletedDbIds.length > 0) {
+                        await supabaseClient
+                            .from("planning_lembur")
+                            .delete()
+                            .in("id", deletedDbIds);
+                    }
                 }
             }
         }
