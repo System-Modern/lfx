@@ -1480,215 +1480,221 @@
 
 
     /* =========================================================
+    STATE SELEKSI KARYAWAN PLANNING
+    ========================================================= */
+
+    const selectedPlanningKaryawan = new Map();
+
+
+    /* =========================================================
     OPEN PLANNING MODAL
     ========================================================= */
 
-   function openPlanningModal() {
+    function openPlanningModal() {
 
-    if (planningCRUDLoading) {
-        return;
-    }
-
-    const modal =
-        planningEl("planningModal");
-
-    const form =
-        planningEl("formPlanning");
-
-    if (!modal) {
-        return;
-    }
-
-
-    /* =====================================================
-       RESET FORM
-    ===================================================== */
-
-    if (form) {
-        form.reset();
-    }
-
-
-    /* =====================================================
-       TANGGAL DEFAULT
-    ===================================================== */
-
-    const tanggal =
-        planningEl("tanggal");
-
-    if (tanggal) {
-
-        const now =
-            new Date();
-
-        const localDate =
-            new Date(
-                now.getTime() -
-                now.getTimezoneOffset() * 60000
-            )
-            .toISOString()
-            .split("T")[0];
-
-        tanggal.value =
-            localDate;
-    }
-
-
-    /* =====================================================
-       DEFAULT DURASI
-    ===================================================== */
-
-    const durasi =
-        planningEl("durasiPlanning");
-
-    const jamMulai =
-        planningEl("jamMulai");
-
-    const jamSelesai =
-        planningEl("jamSelesai");
-
-    const jenisLembur =
-        planningEl("jenisLembur");
-
-
-    if (durasi) {
-        durasi.value = "4 Jam";
-    }
-
-    if (jamMulai) {
-        jamMulai.value = "17:00";
-    }
-
-    if (jamSelesai) {
-        jamSelesai.value = "21:00";
-    }
-
-    let eligibilityRefreshQueued = false;
-
-    const refreshPlanningEligibility = function () {
-        if (eligibilityRefreshQueued) {
+        if (planningCRUDLoading) {
             return;
         }
 
-        eligibilityRefreshQueued = true;
+        const modal =
+            planningEl("planningModal");
 
-        requestAnimationFrame(function () {
-            eligibilityRefreshQueued = false;
-            renderPlanningKaryawan(search?.value || "");
-            updateJumlahKaryawanPlanning();
-        });
-    };
+        const form =
+            planningEl("formPlanning");
 
-    [tanggal, jamMulai, jamSelesai, jenisLembur].forEach(function (field) {
-        if (field) {
-            field.oninput = refreshPlanningEligibility;
-            field.onchange = refreshPlanningEligibility;
+        if (!modal) {
+            return;
         }
-    });
 
 
-    /* =====================================================
-       SEARCH KARYAWAN
-    ===================================================== */
+        /* =====================================================
+           RESET FORM & STATE SELEKSI
+        ===================================================== */
 
-    const search =
-        planningEl("planningSearchKaryawan") ||
-        planningEl("planningKaryawanSearch");
+        if (form) {
+            form.reset();
+        }
 
-
-    if (search) {
-
-        /* reset search */
-        search.value = "";
+        selectedPlanningKaryawan.clear();
 
 
-        /* cegah event listener dobel */
-        search.oninput = function () {
+        /* =====================================================
+           TANGGAL DEFAULT
+        ===================================================== */
 
-            renderPlanningKaryawan(
-                this.value
-            );
+        const tanggal =
+            planningEl("tanggal");
 
-            updateJumlahKaryawanPlanning();
+        if (tanggal) {
 
-        };
+            const now =
+                new Date();
+
+            const localDate =
+                new Date(
+                    now.getTime() -
+                    now.getTimezoneOffset() * 60000
+                )
+                .toISOString()
+                .split("T")[0];
+
+            tanggal.value =
+                localDate;
+        }
 
 
-        /* ESC untuk clear search */
-        search.onkeydown = function (event) {
+        /* =====================================================
+           DEFAULT DURASI
+        ===================================================== */
 
-            if (
-                event.key === "Escape"
-            ) {
+        const durasi =
+            planningEl("durasiPlanning");
 
-                this.value = "";
+        const jamMulai =
+            planningEl("jamMulai");
 
-                renderPlanningKaryawan("");
+        const jamSelesai =
+            planningEl("jamSelesai");
 
-                updateJumlahKaryawanPlanning();
+        const jenisLembur =
+            planningEl("jenisLembur");
 
-                this.focus();
 
+        if (durasi) {
+            durasi.value = "4 Jam";
+        }
+
+        if (jamMulai) {
+            jamMulai.value = "17:00";
+        }
+
+        if (jamSelesai) {
+            jamSelesai.value = "21:00";
+        }
+
+        let eligibilityRefreshQueued = false;
+
+        const refreshPlanningEligibility = function () {
+            if (eligibilityRefreshQueued) {
+                return;
             }
 
+            eligibilityRefreshQueued = true;
+
+            requestAnimationFrame(function () {
+                eligibilityRefreshQueued = false;
+                renderPlanningKaryawan();
+                const sInput =
+                    planningEl("planningSearchKaryawan") ||
+                    planningEl("planningKaryawanSearch");
+                if (sInput && sInput.value.trim()) {
+                    filterPlanningKaryawan();
+                }
+                updateJumlahKaryawanPlanning();
+            });
         };
 
-    }
+        [tanggal, jamMulai, jamSelesai, jenisLembur].forEach(function (field) {
+            if (field) {
+                field.oninput = refreshPlanningEligibility;
+                field.onchange = refreshPlanningEligibility;
+            }
+        });
 
 
-    /* =====================================================
-       RENDER KARYAWAN
-    ===================================================== */
+        /* =====================================================
+           SEARCH KARYAWAN
+        ===================================================== */
 
-    renderPlanningKaryawan("");
+        createPlanningSearch();
 
+        const search =
+            planningEl("planningSearchKaryawan") ||
+            planningEl("planningKaryawanSearch");
 
-    /* =====================================================
-       BUKA MODAL
-    ===================================================== */
-
-    modal.style.display =
-        "flex";
-
-
-    requestAnimationFrame(function () {
-
-        modal.classList.add(
-            "active"
-        );
-
-    });
-
-
-    /* =====================================================
-       UPDATE JUMLAH KARYAWAN
-    ===================================================== */
-
-    updateJumlahKaryawanPlanning();
-
-
-    /* =====================================================
-       HITUNG DURASI
-    ===================================================== */
-
-    hitungDurasiPlanning();
-
-
-    /* =====================================================
-       FOCUS SEARCH
-    ===================================================== */
-
-    requestAnimationFrame(function () {
 
         if (search) {
 
-            search.focus();
+            /* reset search */
+            search.value = "";
+
+            /* filter tanpa render ulang DOM agar centang tidak hilang */
+            search.oninput = function () {
+                filterPlanningKaryawan();
+            };
+
+            /* ESC untuk clear search */
+            search.onkeydown = function (event) {
+
+                if (event.key === "Escape") {
+
+                    this.value = "";
+
+                    filterPlanningKaryawan();
+
+                    this.focus();
+
+                }
+
+            };
 
         }
 
-    });
 
-}
+        /* =====================================================
+           RENDER KARYAWAN & INIT EVENT
+        ===================================================== */
+
+        renderPlanningKaryawan();
+        initPlanningKaryawanEvents();
+
+
+        /* =====================================================
+           BUKA MODAL
+        ===================================================== */
+
+        modal.style.display =
+            "flex";
+
+
+        requestAnimationFrame(function () {
+
+            modal.classList.add(
+                "active"
+            );
+
+        });
+
+
+        /* =====================================================
+           UPDATE JUMLAH KARYAWAN
+        ===================================================== */
+
+        updateJumlahKaryawanPlanning();
+
+
+        /* =====================================================
+           HITUNG DURASI
+        ===================================================== */
+
+        hitungDurasiPlanning();
+
+
+        /* =====================================================
+           FOCUS SEARCH
+        ===================================================== */
+
+        requestAnimationFrame(function () {
+
+            if (search) {
+
+                search.focus();
+
+            }
+
+        });
+
+    }
 
     /* =========================================================
     CLOSE PLANNING MODAL
@@ -1705,9 +1711,11 @@
         modal.classList.remove("active");
         modal.style.display = "none";
 
+        selectedPlanningKaryawan.clear();
+
         const search = planningEl(
             "planningSearchKaryawan"
-        );
+        ) || planningEl("planningKaryawanSearch");
 
         if (search) {
             search.value = "";
@@ -1719,6 +1727,15 @@
             )
             .forEach(function (checkbox) {
                 checkbox.checked = false;
+            });
+
+        document
+            .querySelectorAll(
+                "#planningKaryawanList .planning-karyawan-item"
+            )
+            .forEach(function (item) {
+                item.classList.remove("selected");
+                item.style.display = "flex";
             });
 
         updateJumlahKaryawanPlanning();
@@ -1754,7 +1771,7 @@
                 type="search"
                 id="planningSearchKaryawan"
                 class="planning-search-input"
-                placeholder="Cari nama, NIK, atau NIB..."
+                placeholder="Cari nama, NIK, atau NID..."
                 autocomplete="off"
             >
         `;
@@ -1830,7 +1847,7 @@
 
         const input = planningEl(
             "planningSearchKaryawan"
-        );
+        ) || planningEl("planningKaryawanSearch");
 
         const container = planningEl(
             "planningKaryawanList"
@@ -1959,177 +1976,242 @@
         }, 0);
     }
 
-    function renderPlanningKaryawan(searchTerm = "") {
+    function renderPlanningKaryawan() {
 
-    const container =
-        planningEl("planningKaryawanList");
+        const container =
+            planningEl("planningKaryawanList");
 
-    if (!container) {
-        console.warn(
-            "planningKaryawanList tidak ditemukan"
-        );
-        return;
-    }
-
-    const keyword =
-        normalizePlanningSearch(searchTerm);
-
-    const selectedIds = new Set(
-        Array.from(
-            container.querySelectorAll("input[type='checkbox']:checked")
-        ).map(function (checkbox) {
-            return checkbox.dataset.id;
-        })
-    );
-    const targetDate = planningEl("tanggal")?.value || "";
-    const targetType = normalizePlanningSearch(
-        planningEl("jenisLembur")?.value || "harian"
-    );
-    const planningDuration = hitungDurasiDariJam(
-        planningEl("jamMulai")?.value,
-        planningEl("jamSelesai")?.value
-    );
-    const weeklyLimit = 16 * 60;
-    const weeklyOvertimeCache = new Map();
-
-    let data =
-        typeof getKaryawanAktif === "function"
-            ? getKaryawanAktif()
-            : [];
-
-    if (!Array.isArray(data)) {
-        data = [];
-    }
-
-    data = data
-        .map(function (k) {
-            const employeeId = getPlanningKaryawanId(k);
-            let weeklyUsed = weeklyOvertimeCache.get(employeeId);
-
-            if (weeklyUsed === undefined) {
-                weeklyUsed = getWeeklyOvertimeMinutes(
-                    employeeId,
-                    targetDate
-                );
-                weeklyOvertimeCache.set(employeeId, weeklyUsed);
-            }
-            const canSelect = !targetDate ||
-                targetType === "tanggal_merah" ||
-                weeklyUsed + planningDuration < weeklyLimit;
-
-            return {
-                id: String(
-                    getPlanningKaryawanId(k) || ""
-                ).trim(),
-
-                nama: String(
-                    getPlanningKaryawanNama(k) || ""
-                ).trim(),
-
-                weeklyUsed,
-                remaining: Math.max(0, weeklyLimit - weeklyUsed),
-                canSelect,
-
-                original: k
-            };
-
-        })
-        .filter(function (k) {
-
-            // JANGAN sembunyikan karyawan! Tampilkan seluruh karyawan dari database
-            if (!keyword) {
-                return true;
-            }
-
-            const text =
-                `${k.id} ${k.nama}`
-                    .toLowerCase();
-
-            return text.includes(keyword);
-
-        })
-        .sort(function (a, b) {
-
-            return a.nama.localeCompare(
-                b.nama,
-                "id"
+        if (!container) {
+            console.warn(
+                "planningKaryawanList tidak ditemukan"
             );
+            return;
+        }
+
+        const targetDate = planningEl("tanggal")?.value || "";
+        const targetType = normalizePlanningSearch(
+            planningEl("jenisLembur")?.value || "harian"
+        );
+        const planningDuration = hitungDurasiDariJam(
+            planningEl("jamMulai")?.value,
+            planningEl("jamSelesai")?.value
+        );
+        const weeklyLimit = 16 * 60;
+        const weeklyOvertimeCache = new Map();
+
+        let data =
+            typeof getKaryawanAktif === "function"
+                ? getKaryawanAktif()
+                : [];
+
+        if (!Array.isArray(data)) {
+            data = [];
+        }
+
+        data = data
+            .map(function (k) {
+                const employeeId = getPlanningKaryawanId(k);
+                let weeklyUsed = weeklyOvertimeCache.get(employeeId);
+
+                if (weeklyUsed === undefined) {
+                    weeklyUsed = getWeeklyOvertimeMinutes(
+                        employeeId,
+                        targetDate
+                    );
+                    weeklyOvertimeCache.set(employeeId, weeklyUsed);
+                }
+                const canSelect = !targetDate ||
+                    targetType === "tanggal_merah" ||
+                    weeklyUsed + planningDuration <= weeklyLimit;
+
+                const id = String(
+                    getPlanningKaryawanId(k) || ""
+                ).trim();
+
+                const nama = String(
+                    getPlanningKaryawanNama(k) || ""
+                ).trim();
+
+                const nik = String(
+                    k.nik || k.kode_karyawan || id
+                ).trim();
+
+                const kode_karyawan = String(
+                    k.kode_karyawan || k.nik || id
+                ).trim();
+
+                return {
+                    id,
+                    nama,
+                    nik,
+                    kode_karyawan,
+                    weeklyUsed,
+                    remaining: Math.max(0, weeklyLimit - weeklyUsed),
+                    canSelect,
+                    original: k
+                };
+
+            })
+            .sort(function (a, b) {
+                return a.nama.localeCompare(
+                    b.nama,
+                    "id"
+                );
+            });
+
+
+        if (!data.length) {
+
+            container.innerHTML = `
+                <div style="
+                    padding:20px;
+                    text-align:center;
+                    color:#888;
+                ">
+                    Karyawan tidak ditemukan.
+                </div>
+            `;
+
+            return;
+        }
+
+
+        container.innerHTML =
+            data.map(function (k) {
+
+                const isChecked = selectedPlanningKaryawan.has(k.id);
+                const isWarning = !k.canSelect;
+                const remainingHours = (k.remaining / 60).toFixed(1);
+                const subText = isWarning
+                    ? `<div style="font-size:11px;color:#d71920;font-weight:600;">⚠️ Peringatan jam lembur: ${(k.weeklyUsed / 60).toFixed(1)}/16 jam</div>`
+                    : `<div style="font-size:11px;color:#16803d;">Sisa pola ini: ${remainingHours} jam</div>`;
+
+                return `
+                    <label
+                        class="planning-karyawan-item ${isChecked ? "selected" : ""}"
+                        data-id="${escapePlanningHTML(k.id)}"
+                        data-nama="${escapePlanningHTML(k.nama)}"
+                        data-nik="${escapePlanningHTML(k.nik)}"
+                        data-kode-karyawan="${escapePlanningHTML(k.kode_karyawan)}"
+                        data-search="${escapePlanningHTML(
+                            `${k.id} ${k.nik} ${k.nama}`
+                        )}"
+                        style="
+                            display:flex;
+                            align-items:center;
+                            gap:10px;
+                            padding:10px;
+                            cursor:pointer;
+                        "
+                    >
+
+                        <input
+                            type="checkbox"
+                            class="planning-karyawan-checkbox"
+                            value="${escapePlanningHTML(k.id)}"
+                            data-id="${escapePlanningHTML(k.id)}"
+                            data-nama="${escapePlanningHTML(k.nama)}"
+                            data-nik="${escapePlanningHTML(k.nik)}"
+                            data-kode-karyawan="${escapePlanningHTML(k.kode_karyawan)}"
+                            ${isChecked ? "checked" : ""}
+                        >
+
+                        <div>
+                            <strong>
+                                ${escapePlanningHTML(k.nama)}
+                            </strong>
+
+                            <div style="
+                                font-size:12px;
+                                color:#888;
+                            ">
+                                ${escapePlanningHTML(k.id)}
+                            </div>
+
+                            ${subText}
+                        </div>
+
+                    </label>
+                `;
+
+            })
+            .join("");
+    }
+
+    /* =========================================================
+    EVENT LISTENER CHECKBOX KARYAWAN PLANNING
+    ========================================================= */
+
+    function initPlanningKaryawanEvents() {
+
+        const container =
+            planningEl("planningKaryawanList");
+
+        if (!container || container.dataset.planningEventsInit === "true") {
+            return;
+        }
+
+        container.dataset.planningEventsInit = "true";
+
+        container.addEventListener("change", function (event) {
+
+            const checkbox =
+                event.target.closest("input[type='checkbox']");
+
+            if (!checkbox) {
+                return;
+            }
+
+            const id = String(
+                checkbox.dataset.id ||
+                checkbox.value ||
+                ""
+            ).trim();
+
+            const nama = String(
+                checkbox.dataset.nama ||
+                ""
+            ).trim();
+
+            const nik = String(
+                checkbox.dataset.nik ||
+                id
+            ).trim();
+
+            const kode_karyawan = String(
+                checkbox.dataset.kodeKaryawan ||
+                id
+            ).trim();
+
+            const item =
+                checkbox.closest(".planning-karyawan-item");
+
+            if (!id) {
+                return;
+            }
+
+            if (checkbox.checked) {
+                selectedPlanningKaryawan.set(id, {
+                    id: id,
+                    nama: nama,
+                    nik: nik,
+                    kode_karyawan: kode_karyawan
+                });
+                if (item) {
+                    item.classList.add("selected");
+                }
+            } else {
+                selectedPlanningKaryawan.delete(id);
+                if (item) {
+                    item.classList.remove("selected");
+                }
+            }
+
+            updateJumlahKaryawanPlanning();
 
         });
 
-
-    if (!data.length) {
-
-        container.innerHTML = `
-            <div style="
-                padding:20px;
-                text-align:center;
-                color:#888;
-            ">
-                Karyawan tidak ditemukan.
-            </div>
-        `;
-
-        return;
     }
-
-
-    container.innerHTML =
-        data.map(function (k) {
-
-            const isWarning = !k.canSelect;
-            const remainingHours = (k.remaining / 60).toFixed(1);
-            const subText = isWarning
-                ? `<div style="font-size:11px;color:#d71920;font-weight:600;">⚠️ Peringatan jam lembur: ${(k.weeklyUsed / 60).toFixed(1)}/16 jam</div>`
-                : `<div style="font-size:11px;color:#16803d;">Sisa pola ini: ${remainingHours} jam</div>`;
-
-            return `
-                <label
-                    class="planning-karyawan-item"
-                    data-id="${escapePlanningHTML(k.id)}"
-                    data-nama="${escapePlanningHTML(k.nama)}"
-                    data-search="${escapePlanningHTML(
-                        `${k.id} ${k.nama}`
-                    )}"
-                    style="
-                        display:flex;
-                        align-items:center;
-                        gap:10px;
-                        padding:10px;
-                        cursor:pointer;
-                    "
-                >
-
-                    <input
-                        type="checkbox"
-                        class="planning-karyawan-checkbox"
-                        value="${escapePlanningHTML(k.id)}"
-                        data-id="${escapePlanningHTML(k.id)}"
-                        data-nama="${escapePlanningHTML(k.nama)}"
-                        ${selectedIds.has(k.id) ? "checked" : ""}
-                    >
-
-                    <div>
-                        <strong>
-                            ${escapePlanningHTML(k.nama)}
-                        </strong>
-
-                        <div style="
-                            font-size:12px;
-                            color:#888;
-                        ">
-                            ${escapePlanningHTML(k.id)}
-                        </div>
-
-                        ${subText}
-                    </div>
-
-                </label>
-            `;
-
-        })
-        .join("");
-}
 
     /* =========================================================
     COUNTER KARYAWAN
@@ -2145,10 +2227,7 @@
             return;
         }
 
-        const total =
-            document.querySelectorAll(
-                "#planningKaryawanList input[type='checkbox']:checked"
-            ).length;
+        const total = selectedPlanningKaryawan.size;
 
         counter.textContent =
             `${total} karyawan dipilih`;
@@ -2162,15 +2241,75 @@
 
     function pilihSemuaKaryawanPlanning() {
 
-        document
-            .querySelectorAll(
-                "#planningKaryawanList input[type='checkbox']"
-            )
-            .forEach(function (checkbox) {
+        const container =
+            planningEl("planningKaryawanList");
 
-                checkbox.checked = true;
+        if (!container) {
+            return;
+        }
 
-            });
+        const searchInput =
+            planningEl("planningSearchKaryawan") ||
+            planningEl("planningKaryawanSearch");
+
+        const hasSearch = Boolean(
+            searchInput && searchInput.value.trim()
+        );
+
+        const items =
+            container.querySelectorAll(
+                ".planning-karyawan-item"
+            );
+
+        items.forEach(function (item) {
+
+            // Jika sedang mencari, hanya centang yang sesuai hasil pencarian
+            if (!hasSearch || item.style.display !== "none") {
+
+                const checkbox =
+                    item.querySelector("input[type='checkbox']");
+
+                if (checkbox) {
+
+                    checkbox.checked = true;
+
+                    const id = String(
+                        checkbox.dataset.id ||
+                        checkbox.value ||
+                        ""
+                    ).trim();
+
+                    const nama = String(
+                        checkbox.dataset.nama ||
+                        ""
+                    ).trim();
+
+                    const nik = String(
+                        checkbox.dataset.nik ||
+                        id
+                    ).trim();
+
+                    const kode_karyawan = String(
+                        checkbox.dataset.kodeKaryawan ||
+                        id
+                    ).trim();
+
+                    if (id) {
+                        selectedPlanningKaryawan.set(id, {
+                            id: id,
+                            nama: nama,
+                            nik: nik,
+                            kode_karyawan: kode_karyawan
+                        });
+                    }
+
+                    item.classList.add("selected");
+
+                }
+
+            }
+
+        });
 
         updateJumlahKaryawanPlanning();
 
@@ -2183,15 +2322,76 @@
 
     function batalSemuaKaryawanPlanning() {
 
-        document
-            .querySelectorAll(
-                "#planningKaryawanList input[type='checkbox']"
-            )
-            .forEach(function (checkbox) {
+        const container =
+            planningEl("planningKaryawanList");
 
-                checkbox.checked = false;
+        if (!container) {
+            return;
+        }
+
+        const searchInput =
+            planningEl("planningSearchKaryawan") ||
+            planningEl("planningKaryawanSearch");
+
+        const hasSearch = Boolean(
+            searchInput && searchInput.value.trim()
+        );
+
+        if (hasSearch) {
+
+            // Jika sedang mencari, hanya batalkan yang terlihat
+            const items =
+                container.querySelectorAll(
+                    ".planning-karyawan-item"
+                );
+
+            items.forEach(function (item) {
+
+                if (item.style.display !== "none") {
+
+                    const checkbox =
+                        item.querySelector("input[type='checkbox']");
+
+                    if (checkbox) {
+
+                        checkbox.checked = false;
+
+                        const id = String(
+                            checkbox.dataset.id ||
+                            checkbox.value ||
+                            ""
+                        ).trim();
+
+                        if (id) {
+                            selectedPlanningKaryawan.delete(id);
+                        }
+
+                        item.classList.remove("selected");
+
+                    }
+
+                }
 
             });
+
+        } else {
+
+            // Batalkan semua
+            selectedPlanningKaryawan.clear();
+
+            container
+                .querySelectorAll("input[type='checkbox']")
+                .forEach(function (checkbox) {
+                    checkbox.checked = false;
+                });
+
+            container
+                .querySelectorAll(".planning-karyawan-item")
+                .forEach(function (item) {
+                    item.classList.remove("selected");
+                });
+
+        }
 
         updateJumlahKaryawanPlanning();
 
@@ -2204,6 +2404,14 @@
 
     function getSelectedPlanningKaryawan() {
 
+        if (selectedPlanningKaryawan.size > 0) {
+            return Array.from(selectedPlanningKaryawan.values())
+                .filter(function (item) {
+                    return item && (item.id || item.nama);
+                });
+        }
+
+        // Fallback jika ada checkbox tercentang langsung di DOM
         return Array.from(
             document.querySelectorAll(
                 "#planningKaryawanList input[type='checkbox']:checked"
@@ -2211,14 +2419,32 @@
         )
             .map(function (checkbox) {
 
-                return {
-                    id: String(
-                        checkbox.dataset.id || ""
-                    ).trim(),
+                const id = String(
+                    checkbox.dataset.id ||
+                    checkbox.value ||
+                    ""
+                ).trim();
 
-                    nama: String(
-                        checkbox.dataset.nama || ""
-                    ).trim()
+                const nama = String(
+                    checkbox.dataset.nama ||
+                    ""
+                ).trim();
+
+                const nik = String(
+                    checkbox.dataset.nik ||
+                    id
+                ).trim();
+
+                const kode_karyawan = String(
+                    checkbox.dataset.kodeKaryawan ||
+                    id
+                ).trim();
+
+                return {
+                    id: id,
+                    nama: nama,
+                    nik: nik,
+                    kode_karyawan: kode_karyawan
                 };
 
             })
@@ -7937,6 +8163,18 @@ function initPlanningFilters() {
     }
     if (typeof openPlanningModal === "function") {
         window.openPlanningModal = openPlanningModal;
+    }
+    if (typeof closePlanningModal === "function") {
+        window.closePlanningModal = closePlanningModal;
+    }
+    if (typeof pilihSemuaKaryawanPlanning === "function") {
+        window.pilihSemuaKaryawanPlanning = pilihSemuaKaryawanPlanning;
+    }
+    if (typeof batalSemuaKaryawanPlanning === "function") {
+        window.batalSemuaKaryawanPlanning = batalSemuaKaryawanPlanning;
+    }
+    if (typeof buatPlanning === "function") {
+        window.buatPlanning = buatPlanning;
     }
 
     document.addEventListener("keydown", function (e) {

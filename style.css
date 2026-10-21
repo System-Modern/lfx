@@ -9403,6 +9403,12 @@ button:disabled {
     transform: translateX(2px);
 }
 
+#planningModal .planning-karyawan-item.selected {
+    background: rgba(247, 244, 15, 0.18);
+    border-color: #d71920;
+    box-shadow: 0 0 0 1px rgba(215, 25, 32, 0.35);
+}
+
 #planningModal .planning-karyawan-item input[type="checkbox"] {
     width: 18px;
     height: 18px;
