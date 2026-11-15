@@ -473,6 +473,7 @@ function injectCRUDLoadingStyle() {
 
             opacity: 0;
             visibility: hidden;
+            pointer-events: none;
 
             transition:
                 opacity .25s ease,
@@ -485,6 +486,7 @@ function injectCRUDLoadingStyle() {
 
             opacity: 1;
             visibility: visible;
+            pointer-events: auto;
 
         }
 
@@ -556,95 +558,47 @@ function injectCRUDLoadingStyle() {
         .crud-spinner {
             position: absolute;
             inset: -3px;
-
             border-radius: 50%;
-
-            border:
-                3px solid #efefe9;
-
-            border-top-color:
-                #f7f40f;
-            border-right-color: #d71920;
-
-            animation:
-                crudSpin .75s
-                linear infinite;
-
+            border: 3px solid #e2e8f0;
+            border-top-color: #2563eb;
+            border-right-color: #4f46e5;
+            animation: crudSpin .75s linear infinite;
         }
-
 
         @keyframes crudSpin {
-
-            to {
-                transform:
-                    rotate(360deg);
-            }
-
+            to { transform: rotate(360deg); }
         }
-
 
         .crud-loading-title {
-
-            font-size: 19px;
-            font-weight: 700;
-
-            color:
-                #111827;
-
-            margin-bottom:
-                6px;
-
+            font-size: 18px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 6px;
         }
-
 
         .crud-loading-description {
-
             font-size: 13px;
-
-            color:
-                #6b7280;
-
-            margin-bottom:
-                22px;
-
+            color: #64748b;
+            margin-bottom: 20px;
         }
-
 
         .crud-progress-wrapper {
             width: 100%;
         }
 
-
         .crud-progress-bar {
-
             width: 100%;
-            height: 9px;
-
+            height: 8px;
             overflow: hidden;
-
-            border-radius:
-                99px;
-
-            background:
-                #e5e7eb;
-
+            border-radius: 99px;
+            background: #e2e8f0;
         }
 
-
         .crud-progress-fill {
-
             width: 0%;
             height: 100%;
-
-            border-radius:
-                99px;
-
-            background:
-                linear-gradient(
-                    90deg,
-                    #d71920,
-                    #ef4444
-                );
+            border-radius: 99px;
+            background: linear-gradient(90deg, #2563eb, #4f46e5);
 
             transition:
                 width .35s ease;
@@ -2195,6 +2149,9 @@ function renderKaryawan() {
         );
 
         updateSummaryKaryawan();
+        if (typeof window.__markPageRendered === "function") {
+            window.__markPageRendered("karyawan");
+        }
 
         return;
 
@@ -2208,13 +2165,18 @@ function renderKaryawan() {
     const fragment =
         document.createDocumentFragment();
 
+    const indexByItem = new Map();
+    for (let i = 0; i < dataKaryawan.length; i++) {
+        indexByItem.set(dataKaryawan[i], i);
+    }
+
     filtered.forEach(
         item => {
 
             const index =
-                dataKaryawan.indexOf(
-                    item
-                );
+                indexByItem.has(item)
+                    ? indexByItem.get(item)
+                    : -1;
 
             const isPenalty =
                 normalizeSearch(
@@ -2487,6 +2449,10 @@ function renderKaryawan() {
     updateSummaryKaryawan();
     updateBulkBarUI();
     initKaryawanBulkSelection();
+
+    if (typeof window.__markPageRendered === "function") {
+        window.__markPageRendered("karyawan");
+    }
 
 }
 
@@ -3645,6 +3611,10 @@ function updateKaryawanDropdown() {
 
     }
 
+    if (typeof window.__markKaryawanDropdownRendered === "function") {
+        window.__markKaryawanDropdownRendered();
+    }
+
 }
 
 
@@ -4031,7 +4001,11 @@ function renderLaporanKaryawan() {
 
     const selectedId = select.value;
 
-    select.innerHTML = `<option value="">Pilih karyawan</option>`;
+    const selectFragment = document.createDocumentFragment();
+    const defaultOpt = document.createElement("option");
+    defaultOpt.value = "";
+    defaultOpt.textContent = "Pilih karyawan";
+    selectFragment.appendChild(defaultOpt);
 
     getDataKaryawan()
         .slice()
@@ -4040,9 +4014,13 @@ function renderLaporanKaryawan() {
             const option = document.createElement("option");
             option.value = normalizeId(item.id);
             option.textContent = `${item.nama || "-"} (${item.id || "-"})`;
-            option.selected = option.value === selectedId;
-            select.appendChild(option);
+            if (option.value === selectedId) {
+                option.selected = true;
+            }
+            selectFragment.appendChild(option);
         });
+
+    select.replaceChildren(selectFragment);
 
     const id = select.value;
     const awal = document.getElementById("laporanTanggalAwal")?.value || "";
@@ -4058,6 +4036,9 @@ function renderLaporanKaryawan() {
         if (jamElement) jamElement.textContent = "0 Jam";
         if (periodeElement) periodeElement.textContent = "Pilih karyawan untuk melihat riwayat.";
         table.innerHTML = `<tr><td colspan="7" class="empty-state-cell">Pilih karyawan untuk melihat riwayat.</td></tr>`;
+        if (typeof window.__markPageRendered === "function") {
+            window.__markPageRendered("laporan");
+        }
         return;
     }
 
@@ -4078,6 +4059,9 @@ function renderLaporanKaryawan() {
 
     if (!riwayat.length) {
         table.innerHTML = `<tr><td colspan="7" class="empty-state-cell">Belum ada riwayat pada periode ini.</td></tr>`;
+        if (typeof window.__markPageRendered === "function") {
+            window.__markPageRendered("laporan");
+        }
         return;
     }
 
@@ -4096,6 +4080,10 @@ function renderLaporanKaryawan() {
             <td>${escapeHTML(item.keterangan || "-")}</td>
         </tr>`;
     }).join("");
+
+    if (typeof window.__markPageRendered === "function") {
+        window.__markPageRendered("laporan");
+    }
 }
 
 

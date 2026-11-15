@@ -2,6 +2,7 @@ const http = require("http");
 const https = require("https");
 const fs = require("fs");
 const path = require("path");
+const zlib = require("zlib");
 const { URL } = require("url");
 
 if (typeof process.loadEnvFile === "function") {
@@ -72,15 +73,78 @@ function proxy(request, response) {
     request.pipe(upstreamRequest);
 }
 
+const compressibleExtensions = new Set([".html", ".css", ".js", ".json", ".svg"]);
+const imageExtensions = new Set([".png", ".jpg", ".jpeg", ".webp", ".svg", ".ico"]);
+
+function getFileStamp(targetPath) {
+    try {
+        const stat = fs.statSync(targetPath);
+        if (!stat.isFile()) return null;
+        return {
+            mtimeMs: Math.floor(stat.mtimeMs),
+            size: stat.size,
+            version: Math.floor(stat.mtimeMs).toString(36),
+            etag: `"${Math.floor(stat.mtimeMs).toString(36)}-${stat.size.toString(36)}"`
+        };
+    } catch (_) {
+        return null;
+    }
+}
+
+function sendBufferResponse(request, response, headers, bodyBuffer, canCompress) {
+    const acceptEncoding = String(request.headers["accept-encoding"] || "");
+    const shouldGzip = Boolean(canCompress && /\bgzip\b/i.test(acceptEncoding) && bodyBuffer.length >= 1024);
+
+    if (!shouldGzip) {
+        response.writeHead(200, {
+            ...headers,
+            "Content-Length": bodyBuffer.length
+        });
+        response.end(bodyBuffer);
+        return;
+    }
+
+    zlib.gzip(bodyBuffer, { level: 6 }, (err, compressed) => {
+        if (err) {
+            response.writeHead(200, {
+                ...headers,
+                "Content-Length": bodyBuffer.length
+            });
+            response.end(bodyBuffer);
+            return;
+        }
+        response.writeHead(200, {
+            ...headers,
+            "Content-Encoding": "gzip",
+            "Vary": "Accept-Encoding",
+            "Content-Length": compressed.length
+        });
+        response.end(compressed);
+    });
+}
+
 function serveStatic(request, response) {
-    const pathname = new URL(request.url, "http://localhost").pathname;
+    const parsedUrl = new URL(request.url, "http://localhost");
+    const pathname = parsedUrl.pathname;
     const requestedPath = pathname === "/" ? "/index.html" : pathname;
     const filePath = path.resolve(publicRoot, "." + requestedPath);
 
-    if (!filePath.startsWith(publicRoot) || !fs.existsSync(filePath)) {
+    const isInsideRoot = filePath === publicRoot || filePath.startsWith(publicRoot + path.sep);
+    if (!isInsideRoot || !fs.existsSync(filePath)) {
         if (requestedPath === "/favicon.ico" && fs.existsSync(path.resolve(publicRoot, "Logo.png"))) {
-            response.writeHead(200, { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" });
-            fs.createReadStream(path.resolve(publicRoot, "Logo.png")).pipe(response);
+            const logoPath = path.resolve(publicRoot, "Logo.png");
+            const stamp = getFileStamp(logoPath);
+            if (stamp && request.headers["if-none-match"] === stamp.etag) {
+                response.writeHead(304);
+                response.end();
+                return;
+            }
+            response.writeHead(200, {
+                "Content-Type": "image/png",
+                "Cache-Control": "public, max-age=604800",
+                ...(stamp ? { "ETag": stamp.etag } : {})
+            });
+            fs.createReadStream(logoPath).pipe(response);
             return;
         }
         response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
@@ -104,64 +168,106 @@ function serveStatic(request, response) {
 
     if (extension === ".html") {
         let html = fs.readFileSync(filePath, "utf8");
-        const cacheBuster = Date.now();
-        html = html.replace(/(src|href)=["'](?!https?:\/\/)([^"']+\.(?:js|css))(?:\?[^"']*)?["']/gi, `$1="$2?v=${cacheBuster}"`);
-
-        response.writeHead(200, {
-            "Content-Type": contentTypes[extension],
-            "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0",
-            "Pragma": "no-cache",
-            "Expires": "0",
-            "Surrogate-Control": "no-store",
-            "Clear-Site-Data": "\"cache\""
+        html = html.replace(/(src|href)=["'](?!https?:\/\/)([^"'?]+\.(?:js|css))(?:\?[^"']*)?["']/gi, (_full, attr, relPath) => {
+            const targetAsset = path.resolve(path.dirname(filePath), relPath);
+            const assetStamp = getFileStamp(targetAsset);
+            const ver = assetStamp ? assetStamp.version : Date.now().toString(36);
+            return `${attr}="${relPath}?v=${ver}"`;
         });
-        response.end(html);
+
+        const htmlBuffer = Buffer.from(html, "utf8");
+        sendBufferResponse(request, response, {
+            "Content-Type": contentTypes[extension],
+            "Cache-Control": "no-cache, must-revalidate"
+        }, htmlBuffer, true);
         return;
     }
 
-    response.writeHead(200, {
-        "Content-Type": contentTypes[extension] || "application/octet-stream",
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0",
-        "Pragma": "no-cache",
-        "Expires": "0"
-    });
-    fs.createReadStream(filePath).pipe(response);
-}
-
-http.createServer((request, response) => {
-    if (request.method === "OPTIONS") {
-        response.writeHead(204, {
-            "Access-Control-Allow-Origin": request.headers.origin || "*",
-            "Access-Control-Allow-Headers": "apikey, authorization, content-type, x-client-info, prefer, range",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-        });
+    const stamp = getFileStamp(filePath);
+    if (stamp && request.headers["if-none-match"] === stamp.etag) {
+        response.writeHead(304, { "ETag": stamp.etag });
         response.end();
         return;
     }
 
-    if (request.url === proxyPrefix || request.url === proxyPrefix + "/") {
-        if (request.headers.accept && request.headers.accept.includes("text/html")) {
-            response.writeHead(302, { "Location": "/" });
+    const hasVersionQuery = parsedUrl.searchParams.has("v");
+    let cacheControl = "public, max-age=3600, must-revalidate";
+    if (hasVersionQuery && (extension === ".js" || extension === ".css")) {
+        cacheControl = "public, max-age=31536000, immutable";
+    } else if (imageExtensions.has(extension)) {
+        cacheControl = "public, max-age=604800";
+    }
+
+    const headers = {
+        "Content-Type": contentTypes[extension] || "application/octet-stream",
+        "Cache-Control": cacheControl,
+        ...(stamp ? { "ETag": stamp.etag } : {})
+    };
+
+    if (compressibleExtensions.has(extension)) {
+        const fileBuffer = fs.readFileSync(filePath);
+        sendBufferResponse(request, response, headers, fileBuffer, true);
+        return;
+    }
+
+    if (stamp) {
+        headers["Content-Length"] = stamp.size;
+    }
+    response.writeHead(200, headers);
+    fs.createReadStream(filePath).pipe(response);
+}
+
+function startServer(portToTry) {
+    const server = http.createServer((request, response) => {
+        if (request.method === "OPTIONS") {
+            response.writeHead(204, {
+                "Access-Control-Allow-Origin": request.headers.origin || "*",
+                "Access-Control-Allow-Headers": "apikey, authorization, content-type, x-client-info, prefer, range",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            });
             response.end();
             return;
         }
-        response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-        response.end(JSON.stringify({ status: "ok", message: "Supabase proxy aktif." }));
-        return;
-    }
 
-    if (request.url.startsWith(proxyPrefix + "/")) {
-        proxy(request, response);
-        return;
-    }
+        if (request.url === proxyPrefix || request.url === proxyPrefix + "/") {
+            if (request.headers.accept && request.headers.accept.includes("text/html")) {
+                response.writeHead(302, { "Location": "/" });
+                response.end();
+                return;
+            }
+            response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+            response.end(JSON.stringify({ status: "ok", message: "Supabase proxy aktif." }));
+            return;
+        }
 
-    serveStatic(request, response);
-}).listen(port, () => {
-    console.log("\n=========================================");
-    console.log(" Planbur Server siap digunakan!");
-    console.log("=========================================");
-    console.log(" > Buka Web App   : http://localhost:" + port + "/");
-    console.log(" > Cek Lembur     : http://localhost:" + port + "/cek-lembur.html");
-    console.log(" > Proxy Supabase : http://localhost:" + port + proxyPrefix + "/");
-    console.log("=========================================\n");
-});
+        if (request.url.startsWith(proxyPrefix + "/")) {
+            proxy(request, response);
+            return;
+        }
+
+        serveStatic(request, response);
+    });
+
+    server.on("error", (err) => {
+        if (err.code === "EADDRINUSE") {
+            console.warn(`[Planbur] Port ${portToTry} sedang digunakan, otomatis mencoba port ${portToTry + 1}...`);
+            startServer(portToTry + 1);
+        } else {
+            console.error("[Planbur] Server error:", err);
+            process.exit(1);
+        }
+    });
+
+    server.listen(portToTry, () => {
+        console.log("\n=========================================");
+        console.log(" Planbur Server siap digunakan!");
+        console.log("=========================================");
+        console.log(" > Buka Web App   : http://localhost:" + portToTry + "/");
+        console.log(" > Cek Lembur     : http://localhost:" + portToTry + "/cek-lembur.html");
+        console.log(" > Proxy Supabase : http://localhost:" + portToTry + proxyPrefix + "/");
+        console.log("=========================================\n");
+    });
+}
+
+startServer(port);
+

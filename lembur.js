@@ -55,13 +55,39 @@
         return `planningEvidence_${String(id ?? "")}`;
     }
 
+    const planningEvidenceLocalMemo = new Map();
+
+    function invalidatePlanningEvidenceMemo(id) {
+        if (id !== undefined && id !== null) {
+            planningEvidenceLocalMemo.delete(String(id));
+        } else {
+            planningEvidenceLocalMemo.clear();
+        }
+        window.__planburEvidenceVersion = (window.__planburEvidenceVersion || 0) + 1;
+    }
+
+    if (typeof window !== "undefined") {
+        window.addEventListener("storage", function (ev) {
+            if (!ev || !ev.key || ev.key.startsWith("planningEvidence_")) {
+                invalidatePlanningEvidenceMemo();
+            }
+        });
+    }
+
     function getPlanningEvidence(id) {
+        const memoKey = String(id ?? "");
+        if (planningEvidenceLocalMemo.has(memoKey)) {
+            return planningEvidenceLocalMemo.get(memoKey);
+        }
         try {
             const savedEvidence = localStorage.getItem(
                 getPlanningEvidenceKey(id)
             );
-            return savedEvidence ? JSON.parse(savedEvidence) : null;
+            const parsed = savedEvidence ? JSON.parse(savedEvidence) : null;
+            planningEvidenceLocalMemo.set(memoKey, parsed);
+            return parsed;
         } catch (error) {
+            planningEvidenceLocalMemo.set(memoKey, null);
             return null;
         }
     }
@@ -143,12 +169,22 @@
                 img.crossOrigin = "anonymous";
                 img.onload = function () {
                     try {
+                        // Scale logo cleanly to 3x of 92x60 export slot so canvas/dataURL stays tiny & sharp
+                        const maxW = 276;
+                        const maxH = 180;
+                        const natW = img.naturalWidth || 92;
+                        const natH = img.naturalHeight || 60;
+                        const ratio = Math.min(maxW / natW, maxH / natH, 1);
                         const c = document.createElement("canvas");
-                        c.width = img.naturalWidth || 92;
-                        c.height = img.naturalHeight || 60;
+                        c.width = Math.max(1, Math.round(natW * ratio));
+                        c.height = Math.max(1, Math.round(natH * ratio));
                         const ctx = c.getContext("2d");
-                        ctx.drawImage(img, 0, 0, c.width, c.height);
-                        preloadedLogoDataUrl = c.toDataURL("image/png");
+                        if (ctx) {
+                            ctx.imageSmoothingEnabled = true;
+                            ctx.imageSmoothingQuality = "high";
+                            ctx.drawImage(img, 0, 0, c.width, c.height);
+                            preloadedLogoDataUrl = c.toDataURL("image/png");
+                        }
                     } catch (_) {}
                 };
                 img.src = "Logo.png";
@@ -318,6 +354,7 @@
                     planningEvidenceCache.set(publicData.publicUrl, uploadFile);
                     planningEvidenceCache.set(String(id), uploadFile);
                 }
+                invalidatePlanningEvidenceMemo(id);
 
                 button.textContent = "✓ Foto";
                 button.classList.add("has-file");
@@ -406,22 +443,28 @@
 
             if (typeof urlOrData === "string" && (urlOrData.startsWith("http://") || urlOrData.startsWith("https://"))) {
                 try {
-                    let fetchUrl = urlOrData;
                     const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || window.PlanburEnv?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
-                    const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
-                    const fetchHeaders = (supabaseKey && (urlOrData.includes("supabase.co") || fetchUrl.includes("/supabase")))
-                        ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey }
-                        : {};
+                    const proxyUrl = urlOrData.includes(supabaseBase)
+                        ? urlOrData.replace(supabaseBase, window.location.origin + "/supabase")
+                        : null;
 
-                    if (urlOrData.includes(supabaseBase)) {
-                        fetchUrl = urlOrData.replace(supabaseBase, window.location.origin + "/supabase");
+                    if (proxyUrl) {
+                        const response = await fetch(proxyUrl, { cache: "force-cache" });
+                        if (response.ok) {
+                            fileBlob = await response.blob();
+                        }
                     }
-                    const response = await fetch(fetchUrl, { cache: "force-cache", headers: fetchHeaders });
-                    if (response.ok) {
-                        fileBlob = await response.blob();
-                    } else if (fetchUrl !== urlOrData) {
-                        const directResp = await fetch(urlOrData, { cache: "force-cache", headers: fetchHeaders });
-                        if (directResp.ok) fileBlob = await directResp.blob();
+
+                    if (!fileBlob) {
+                        const isPublicAsset = urlOrData.includes("/storage/v1/object/public/");
+                        const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "";
+                        const directHeaders = (!isPublicAsset && supabaseKey && urlOrData.includes("supabase.co"))
+                            ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey }
+                            : undefined;
+                        const directResp = await fetch(urlOrData, directHeaders ? { cache: "force-cache", headers: directHeaders } : { cache: "force-cache" });
+                        if (directResp.ok) {
+                            fileBlob = await directResp.blob();
+                        }
                     }
                 } catch (_) {}
             }
@@ -436,11 +479,7 @@
                     if (error) throw error;
                     fileBlob = data;
                 } else if (typeof urlOrData === "string") {
-                    const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
-                    const fetchHeaders = (supabaseKey && urlOrData.includes("supabase.co"))
-                        ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey }
-                        : {};
-                    const response = await fetch(urlOrData, { headers: fetchHeaders });
+                    const response = await fetch(urlOrData, { cache: "force-cache" });
                     if (!response.ok) {
                         throw new Error(`Gagal mengambil bukti (${response.status}).`);
                     }
@@ -452,6 +491,7 @@
                 throw new Error("File bukti kosong atau tidak dapat dibaca.");
             }
 
+            planningEvidenceCache.set(String(id), fileBlob);
             planningEvidenceCache.set(urlOrData, fileBlob);
             triggerPlanningEvidenceDownload(fileBlob, fileName);
         } catch (error) {
@@ -467,6 +507,7 @@
         }
 
         localStorage.removeItem(getPlanningEvidenceKey(id));
+        invalidatePlanningEvidenceMemo(id);
         const planningItem = findPlanningById(id);
         const evidenceUrl = planningItem?.buktiUrl || "";
         if (evidenceUrl) {
@@ -711,584 +752,6 @@
 
 
     /* =========================================================
-    LOADING
-    ========================================================= */
-
-    function initPlanningLoading() {
-
-        if (planningEl("planningGlobalLoading")) {
-            return;
-        }
-
-        const loading = document.createElement("div");
-
-        loading.id = "planningGlobalLoading";
-
-        loading.innerHTML = `
-            <div class="planning-loading-box">
-                <div class="planning-loading-brand">
-                    <img src="Logo.png" alt="">
-                    <span class="planning-loading-spinner"></span>
-                </div>
-                <div
-                    class="planning-loading-text"
-                    id="planningLoadingText"
-                >
-                    Memproses...
-                </div>
-            </div>
-        `;
-
-        Object.assign(loading.style, {
-            position: "fixed",
-            inset: "0",
-            background: "rgba(17,17,17,.28)",
-            backdropFilter: "blur(7px)",
-            display: "none",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: "999998"
-        });
-
-        const style = document.createElement("style");
-
-        style.id = "planningLoadingStyle";
-
-        style.textContent = `
-            .planning-preview-modal {
-                position:fixed;
-                inset:0;
-                z-index:99998;
-                display:none;
-                align-items:center;
-                justify-content:center;
-                padding:16px;
-            }
-
-            .planning-preview-modal.active {
-                display:flex;
-                animation: modalFadeIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
-            }
-
-            @keyframes modalFadeIn {
-                from { opacity:0; transform:scale(0.92) translateY(16px); }
-                to { opacity:1; transform:scale(1) translateY(0); }
-            }
-
-            .planning-preview-overlay {
-                position:absolute;
-                inset:0;
-                background:rgba(7,8,20,0.72);
-                backdrop-filter:blur(20px) saturate(160%);
-                -webkit-backdrop-filter:blur(20px) saturate(160%);
-            }
-
-            .planning-preview-box {
-                position:relative;
-                z-index:2;
-                width:min(860px,96vw);
-                max-height:92vh;
-                overflow:auto;
-                background:rgba(15,17,35,0.88);
-                backdrop-filter:blur(40px) saturate(200%);
-                -webkit-backdrop-filter:blur(40px) saturate(200%);
-                border-radius:24px;
-                border:1px solid rgba(255,255,255,0.1);
-                box-shadow:
-                    0 32px 80px rgba(0,0,0,0.6),
-                    0 0 0 1px rgba(255,255,255,0.06),
-                    inset 0 1px 0 rgba(255,255,255,0.1);
-                scrollbar-width:thin;
-                scrollbar-color:rgba(255,255,255,0.15) transparent;
-            }
-
-            .planning-preview-box::-webkit-scrollbar { width:5px; }
-            .planning-preview-box::-webkit-scrollbar-thumb {
-                background:rgba(255,255,255,0.15);
-                border-radius:99px;
-            }
-
-            .planning-preview-header {
-                display:flex;
-                align-items:center;
-                justify-content:space-between;
-                gap:15px;
-                padding:24px 28px 20px;
-                background:linear-gradient(135deg,#1e1b4b 0%,#312e81 40%,#4c1d95 70%,#6d28d9 100%);
-                border-radius:24px 24px 0 0;
-                position:relative;
-                overflow:hidden;
-            }
-
-            .planning-preview-header::before {
-                content:'';
-                position:absolute;
-                inset:0;
-                background:linear-gradient(135deg,rgba(247,244,15,0.06),transparent 60%);
-                pointer-events:none;
-            }
-
-            .planning-preview-header::after {
-                content:'';
-                position:absolute;
-                top:-60px;
-                right:-60px;
-                width:180px;
-                height:180px;
-                border-radius:50%;
-                background:radial-gradient(circle,rgba(167,139,250,0.25),transparent 70%);
-                pointer-events:none;
-            }
-
-            .planning-preview-eyebrow {
-                display:inline-flex;
-                align-items:center;
-                gap:6px;
-                padding:4px 12px;
-                background:rgba(255,255,255,0.12);
-                border:1px solid rgba(255,255,255,0.15);
-                border-radius:99px;
-                color:rgba(255,255,255,0.8);
-                font-size:10px;
-                font-weight:800;
-                letter-spacing:0.8px;
-                text-transform:uppercase;
-                margin-bottom:6px;
-            }
-
-            .planning-preview-eyebrow::before {
-                content:'';
-                width:6px;
-                height:6px;
-                border-radius:50%;
-                background:#a78bfa;
-                box-shadow:0 0 6px #a78bfa;
-                animation:eyebrowPulse 2s infinite;
-            }
-
-            @keyframes eyebrowPulse {
-                0%,100% { opacity:1; }
-                50% { opacity:0.4; }
-            }
-
-            .planning-preview-header h2 {
-                margin:0;
-                font-size:20px;
-                font-weight:800;
-                color:#fff;
-                letter-spacing:-0.3px;
-                text-shadow:0 2px 8px rgba(0,0,0,0.2);
-            }
-
-            .planning-preview-close {
-                width:36px;
-                height:36px;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                border:1px solid rgba(255,255,255,0.2);
-                background:rgba(255,255,255,0.1);
-                backdrop-filter:blur(8px);
-                color:#fff;
-                font-size:18px;
-                line-height:1;
-                cursor:pointer;
-                border-radius:10px;
-                transition:all 0.2s ease;
-                flex-shrink:0;
-                position:relative;
-                z-index:3;
-            }
-
-            .planning-preview-close:hover {
-                background:rgba(255,255,255,0.2);
-                transform:scale(1.08);
-            }
-
-            .planning-preview-form {
-                display:grid;
-                grid-template-columns:repeat(3,1fr);
-                gap:14px;
-                padding:24px 28px 16px;
-            }
-
-            .planning-preview-field {
-                display:flex;
-                flex-direction:column;
-                gap:7px;
-            }
-
-            .planning-preview-full,
-            .planning-preview-field.full {
-                grid-column:1/-1;
-            }
-
-            .planning-preview-field label {
-                font-size:11px;
-                font-weight:700;
-                color:rgba(255,255,255,0.5);
-                text-transform:uppercase;
-                letter-spacing:0.5px;
-            }
-
-            .planning-preview-field input,
-            .planning-preview-field select,
-            .planning-preview-field textarea {
-                width:100%;
-                box-sizing:border-box;
-                padding:11px 14px;
-                background:rgba(255,255,255,0.07);
-                border:1px solid rgba(255,255,255,0.1);
-                border-radius:12px;
-                outline:none;
-                color:#fff;
-                font-size:13px;
-                font-weight:500;
-                font-family:'Plus Jakarta Sans',sans-serif;
-                transition:border-color 0.2s ease,background 0.2s ease,box-shadow 0.2s ease;
-            }
-
-            .planning-preview-field input[readonly] {
-                background:rgba(255,255,255,0.04);
-                color:rgba(255,255,255,0.45);
-                cursor:default;
-            }
-
-            .planning-preview-field select option {
-                background:#1e1b4b;
-                color:#fff;
-            }
-
-            .planning-preview-field input:not([readonly]):focus,
-            .planning-preview-field select:focus,
-            .planning-preview-field textarea:focus {
-                border-color:rgba(167,139,250,0.6);
-                background:rgba(139,92,246,0.1);
-                box-shadow:0 0 0 3px rgba(139,92,246,0.15),inset 0 1px 0 rgba(255,255,255,0.05);
-            }
-
-            .planning-preview-section {
-                padding:0 28px 20px;
-            }
-
-            .planning-preview-section-header {
-                display:flex;
-                align-items:center;
-                justify-content:space-between;
-                gap:12px;
-                margin-bottom:14px;
-                padding:14px 0 10px;
-                border-top:1px solid rgba(255,255,255,0.07);
-            }
-
-            .planning-preview-section-header h3 {
-                margin:0;
-                font-size:14px;
-                font-weight:700;
-                color:rgba(255,255,255,0.85);
-            }
-
-            .planning-preview-section-header small {
-                color:rgba(255,255,255,0.35);
-                font-size:12px;
-                margin-top:2px;
-                display:block;
-            }
-
-            .planning-add-label {
-                display:inline-flex;
-                align-items:center;
-                gap:5px;
-                color:#a78bfa;
-                font-size:12px;
-                font-weight:700;
-                cursor:pointer;
-                padding:6px 12px;
-                border-radius:8px;
-                border:1px solid rgba(167,139,250,0.25);
-                background:rgba(139,92,246,0.08);
-                transition:all 0.2s ease;
-            }
-
-            .planning-add-label:hover {
-                background:rgba(139,92,246,0.15);
-                border-color:rgba(167,139,250,0.4);
-            }
-
-            .planning-preview-search {
-                position:relative;
-                margin-bottom:12px;
-            }
-
-            .planning-preview-search input {
-                width:100%;
-                box-sizing:border-box;
-                padding:11px 14px 11px 40px;
-                background:rgba(255,255,255,0.06);
-                border:1px solid rgba(255,255,255,0.1);
-                border-radius:12px;
-                outline:none;
-                color:rgba(255,255,255,0.8);
-                font-size:13px;
-                font-family:'Plus Jakarta Sans',sans-serif;
-                background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
-                background-repeat:no-repeat;
-                background-position:13px center;
-                transition:border-color 0.2s ease,background-color 0.2s ease;
-            }
-
-            .planning-preview-search input::placeholder { color:rgba(255,255,255,0.3); }
-
-            .planning-preview-search input:focus {
-                border-color:rgba(167,139,250,0.5);
-                background-color:rgba(139,92,246,0.08);
-            }
-
-            .planning-preview-search-result {
-                position:absolute;
-                left:0;
-                right:0;
-                top:calc(100% + 6px);
-                z-index:20;
-                display:none;
-                max-height:220px;
-                overflow:auto;
-                background:rgba(15,17,35,0.97);
-                backdrop-filter:blur(20px);
-                border:1px solid rgba(255,255,255,0.12);
-                border-radius:14px;
-                box-shadow:0 16px 40px rgba(0,0,0,0.5);
-            }
-
-            .planning-preview-search-result.active {
-                display:block;
-                animation:dropIn 0.2s ease;
-            }
-
-            @keyframes dropIn {
-                from { opacity:0; transform:translateY(-8px); }
-                to { opacity:1; transform:translateY(0); }
-            }
-
-            .planning-preview-search-item {
-                display:flex;
-                align-items:center;
-                justify-content:space-between;
-                gap:10px;
-                padding:10px 14px;
-                border-bottom:1px solid rgba(255,255,255,0.05);
-                transition:background 0.15s ease;
-            }
-
-            .planning-preview-search-item:hover { background:rgba(139,92,246,0.12); }
-
-            .planning-preview-search-info { min-width:0; flex:1; }
-
-            .planning-preview-search-name {
-                font-weight:700;
-                font-size:13px;
-                color:rgba(255,255,255,0.9);
-            }
-
-            .planning-preview-search-id {
-                color:rgba(255,255,255,0.4);
-                font-size:11px;
-                margin-top:2px;
-            }
-
-            .planning-preview-search-add {
-                border:1px solid rgba(167,139,250,0.4);
-                background:rgba(139,92,246,0.2);
-                color:#a78bfa;
-                padding:6px 12px;
-                border-radius:8px;
-                font-size:12px;
-                font-weight:700;
-                cursor:pointer;
-                transition:all 0.2s ease;
-                white-space:nowrap;
-            }
-
-            .planning-preview-search-add:hover {
-                background:rgba(139,92,246,0.4);
-                border-color:rgba(167,139,250,0.6);
-            }
-
-            .planning-preview-search-empty {
-                padding:20px;
-                text-align:center;
-                color:rgba(255,255,255,0.35);
-                font-size:13px;
-            }
-
-            .planning-preview-karyawan-list {
-                display:flex;
-                flex-direction:column;
-                gap:8px;
-                max-height:300px;
-                overflow:auto;
-                padding-right:4px;
-                scrollbar-width:thin;
-                scrollbar-color:rgba(255,255,255,0.1) transparent;
-            }
-
-            .planning-preview-karyawan-row {
-                display:grid;
-                grid-template-columns:36px 1fr 160px 38px;
-                gap:8px;
-                align-items:center;
-                padding:10px 12px;
-                background:rgba(255,255,255,0.04);
-                border:1px solid rgba(255,255,255,0.08);
-                border-radius:12px;
-                transition:background 0.2s ease,border-color 0.2s ease;
-            }
-
-            .planning-preview-karyawan-row:hover {
-                background:rgba(139,92,246,0.08);
-                border-color:rgba(167,139,250,0.2);
-            }
-
-            .planning-preview-number {
-                text-align:center;
-                font-weight:800;
-                font-size:12px;
-                color:rgba(255,255,255,0.3);
-                width:28px;
-                height:28px;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                background:rgba(255,255,255,0.06);
-                border-radius:8px;
-            }
-
-            .planning-preview-karyawan-row input {
-                width:100%;
-                box-sizing:border-box;
-                padding:8px 11px;
-                background:rgba(255,255,255,0.06);
-                border:1px solid rgba(255,255,255,0.08);
-                border-radius:9px;
-                outline:none;
-                color:rgba(255,255,255,0.85);
-                font-size:13px;
-                font-family:'Plus Jakarta Sans',sans-serif;
-                transition:border-color 0.2s ease,background 0.2s ease;
-            }
-
-            .planning-preview-karyawan-row input:focus {
-                border-color:rgba(167,139,250,0.4);
-                background:rgba(139,92,246,0.08);
-            }
-
-            .planning-btn-delete {
-                width:34px;
-                height:34px;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                border:1px solid rgba(244,63,94,0.3);
-                border-radius:9px;
-                background:rgba(244,63,94,0.1);
-                color:#f43f5e;
-                cursor:pointer;
-                font-size:16px;
-                transition:all 0.2s ease;
-            }
-
-            .planning-btn-delete:hover {
-                background:rgba(244,63,94,0.25);
-                border-color:rgba(244,63,94,0.5);
-                transform:scale(1.05);
-            }
-
-            .planning-preview-actions {
-                display:flex;
-                justify-content:flex-end;
-                align-items:center;
-                gap:10px;
-                padding:16px 28px 24px;
-                border-top:1px solid rgba(255,255,255,0.07);
-            }
-
-            .planning-preview-cancel {
-                display:inline-flex;
-                align-items:center;
-                gap:7px;
-                border:1px solid rgba(255,255,255,0.15);
-                background:rgba(255,255,255,0.07);
-                backdrop-filter:blur(8px);
-                color:rgba(255,255,255,0.7);
-                padding:11px 20px;
-                border-radius:12px;
-                font-size:13px;
-                font-weight:600;
-                cursor:pointer;
-                font-family:'Plus Jakarta Sans',sans-serif;
-                transition:all 0.2s ease;
-            }
-
-            .planning-preview-cancel:hover {
-                background:rgba(255,255,255,0.12);
-                border-color:rgba(255,255,255,0.25);
-                color:#fff;
-                transform:translateY(-1px);
-            }
-
-            .planning-btn-save {
-                display:inline-flex;
-                align-items:center;
-                gap:8px;
-                border:1px solid rgba(167,139,250,0.5);
-                background:linear-gradient(135deg,#6d28d9 0%,#7c3aed 50%,#8b5cf6 100%);
-                color:#fff;
-                padding:11px 24px;
-                border-radius:12px;
-                font-size:13px;
-                font-weight:800;
-                cursor:pointer;
-                font-family:'Plus Jakarta Sans',sans-serif;
-                box-shadow:0 8px 24px rgba(109,40,217,0.35);
-                transition:all 0.25s ease;
-                position:relative;
-                overflow:hidden;
-            }
-
-            .planning-btn-save::after {
-                content:'';
-                position:absolute;
-                inset:0;
-                background:linear-gradient(rgba(255,255,255,0.15),transparent);
-                opacity:0;
-                transition:opacity 0.3s ease;
-            }
-
-            .planning-btn-save:hover {
-                background:linear-gradient(135deg,#5b21b6 0%,#6d28d9 50%,#7c3aed 100%);
-                box-shadow:0 12px 32px rgba(109,40,217,0.5);
-                transform:translateY(-2px);
-            }
-
-            .planning-btn-save:hover::after { opacity:1; }
-            .planning-btn-save:active { transform:translateY(0); }
-
-            @media(max-width:700px) {
-                .planning-preview-form { grid-template-columns:1fr; padding:16px 18px; }
-                .planning-preview-section { padding:0 18px 16px; }
-                .planning-preview-header { padding:18px 20px 16px; }
-                .planning-preview-actions { padding:14px 18px 20px; flex-direction:column; }
-                .planning-preview-cancel,.planning-btn-save { width:100%; justify-content:center; }
-                .planning-preview-karyawan-row { grid-template-columns:32px 1fr 38px; }
-                .preview-id-input { grid-column:2; }
-            }
-        `;
-
-                document.head.appendChild(style);
-    }
-
-
-    /* =========================================================
     LOADING OVERLAY
     ========================================================= */
 
@@ -1314,9 +777,9 @@
         Object.assign(loading.style, {
             position: "fixed",
             inset: "0",
-            background: "rgba(7, 8, 20, 0.75)",
-            backdropFilter: "blur(16px)",
-            webkitBackdropFilter: "blur(16px)",
+            background: "rgba(15, 23, 42, 0.45)",
+            backdropFilter: "blur(4px)",
+            webkitBackdropFilter: "blur(4px)",
             display: "none",
             alignItems: "center",
             justifyContent: "center",
@@ -1327,56 +790,52 @@
         style.id = "planningLoadingStyle";
         style.textContent = `
             .planning-loading-box {
-                min-width: 260px;
-                padding: 32px 40px;
-                border: 1px solid rgba(255, 255, 255, 0.15);
+                min-width: 264px;
+                padding: 28px 34px;
+                border: 1px solid #e2e8f0;
                 border-radius: 20px;
-                background: rgba(15, 17, 35, 0.92);
-                backdrop-filter: blur(30px);
-                -webkit-backdrop-filter: blur(30px);
-                box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+                background: #ffffff;
+                box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
                 text-align: center;
                 font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-                animation: planningLoadingPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+                animation: planningLoadingPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
             }
 
             @keyframes planningLoadingPop {
-                from { opacity: 0; transform: scale(0.85); }
+                from { opacity: 0; transform: scale(0.92); }
                 to { opacity: 1; transform: scale(1); }
             }
 
             .planning-loading-brand {
                 position: relative;
-                width: 76px;
-                height: 76px;
-                margin: 0 auto 20px;
+                width: 68px;
+                height: 68px;
+                margin: 0 auto 16px;
                 display: grid;
                 place-items: center;
             }
 
             .planning-loading-brand img {
-                width: 44px;
-                height: 44px;
+                width: 40px;
+                height: 40px;
                 object-fit: contain;
-                filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
             }
 
             .planning-loading-spinner {
                 position: absolute;
                 inset: 0;
-                border: 3px solid rgba(255, 255, 255, 0.08);
-                border-top-color: #8b5cf6;
-                border-right-color: #ec4899;
+                border: 3px solid #e2e8f0;
+                border-top-color: #2563eb;
+                border-right-color: #4f46e5;
                 border-radius: 50%;
-                animation: planningSpin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-                box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+                animation: planningSpin 0.75s linear infinite;
             }
 
             .planning-loading-text {
                 font-size: 14px;
                 font-weight: 700;
-                color: #f8fafc;
-                letter-spacing: 0.3px;
+                color: #0f172a;
+                letter-spacing: -0.01em;
             }
 
             @keyframes planningSpin {
@@ -1387,7 +846,7 @@
                 display: inline-block;
                 width: 14px;
                 height: 14px;
-                border: 2px solid rgba(255,255,255,0.3);
+                border: 2px solid rgba(255,255,255,0.35);
                 border-top-color: #ffffff;
                 border-radius: 50%;
                 animation: planningSpin 0.7s linear infinite;
@@ -1817,23 +1276,26 @@
             .planning-search-input {
                 width: 100%;
                 box-sizing: border-box;
-                padding: 11px 13px;
-                border: 1px solid #ddd;
-                border-radius: 9px;
+                padding: 10px 13px;
+                border: 1.5px solid #e2e8f0;
+                background: #f8fafc;
+                color: #0f172a;
+                border-radius: 10px;
                 outline: none;
-                font-size: 14px;
+                font-size: 13.5px;
+                transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
             }
 
             .planning-search-input:focus {
-                border-color: #d71920;
-                box-shadow:
-                    0 0 0 3px rgba(215,25,32,.08);
+                background: #ffffff;
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
             }
 
             .planning-search-empty {
                 padding: 18px;
                 text-align: center;
-                color: #888;
+                color: #64748b;
                 font-size: 13px;
             }
         `;
@@ -3123,8 +2585,6 @@
             return;
         }
 
-        tbody.innerHTML = "";
-
         let data =
             Array.isArray(planning)
                 ? [...planning]
@@ -3222,6 +2682,10 @@
             if (jumlah) {
                 jumlah.textContent =
                     "0 Planning";
+            }
+
+            if (typeof window.__markPageRendered === "function") {
+                window.__markPageRendered("planning");
             }
 
             return;
@@ -3465,7 +2929,7 @@
 
         });
 
-        tbody.appendChild(fragment);
+        tbody.replaceChildren(fragment);
 
         const jumlah =
             planningEl("jumlahPlanningText");
@@ -3473,6 +2937,10 @@
         if (jumlah) {
             jumlah.textContent =
                 `${data.length} Planning`;
+        }
+
+        if (typeof window.__markPageRendered === "function") {
+            window.__markPageRendered("planning");
         }
 
         if (!tbody.dataset.planningDelegation) {
@@ -3567,7 +3035,7 @@
 
             .planning-preview-modal.active {
                 display:flex;
-                animation:modalFadeIn 0.25s ease;
+                animation:modalFadeIn 0.2s ease;
             }
 
             @keyframes modalFadeIn {
@@ -3578,31 +3046,29 @@
             .planning-preview-overlay {
                 position:absolute;
                 inset:0;
-                background:rgba(7,8,20,0.78);
-                backdrop-filter:blur(20px) saturate(160%);
-                -webkit-backdrop-filter:blur(20px) saturate(160%);
+                background:rgba(15,23,42,0.52);
+                backdrop-filter:blur(4px);
+                -webkit-backdrop-filter:blur(4px);
             }
 
             .planning-preview-box {
                 position:relative;
                 z-index:2;
-                width:min(900px,94vw);
+                width:min(880px,94vw);
                 max-height:90vh;
                 overflow:auto;
-                background:rgba(15,17,35,0.94);
-                backdrop-filter:blur(40px);
-                -webkit-backdrop-filter:blur(40px);
-                border:1px solid rgba(255,255,255,0.12);
-                border-radius:24px;
-                box-shadow:0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1);
-                color:#f8fafc;
+                background:#ffffff;
+                border:1px solid #e2e8f0;
+                border-radius:22px;
+                box-shadow:0 24px 60px rgba(15,23,42,0.22);
+                color:#0f172a;
                 scrollbar-width:thin;
-                scrollbar-color:rgba(255,255,255,0.15) transparent;
-                animation:modalSpring 0.35s cubic-bezier(0.34,1.56,0.64,1);
+                scrollbar-color:#cbd5e1 transparent;
+                animation:modalSpring 0.25s cubic-bezier(0.16,1,0.3,1);
             }
 
             @keyframes modalSpring {
-                from { opacity:0; transform:scale(0.92) translateY(12px); }
+                from { opacity:0; transform:scale(0.96) translateY(10px); }
                 to { opacity:1; transform:scale(1) translateY(0); }
             }
 
@@ -3611,16 +3077,16 @@
                 align-items:center;
                 justify-content:space-between;
                 gap:15px;
-                padding:22px 28px 18px;
-                background:linear-gradient(135deg, rgba(109,40,217,0.25) 0%, rgba(124,58,237,0.12) 50%, transparent 100%);
-                border-bottom:1px solid rgba(255,255,255,0.08);
-                border-radius:24px 24px 0 0;
+                padding:20px 26px 16px;
+                background:linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+                border-bottom:1px solid #e2e8f0;
+                border-radius:22px 22px 0 0;
             }
 
             .planning-preview-eyebrow {
-                color:#a78bfa;
+                color:#2563eb;
                 font-weight:800;
-                letter-spacing:1px;
+                letter-spacing:0.8px;
                 font-size:11px;
                 text-transform:uppercase;
                 margin-bottom:4px;
@@ -3628,40 +3094,39 @@
 
             .planning-preview-header h2 {
                 margin:0;
-                font-size:20px;
+                font-size:19px;
                 font-weight:800;
-                color:#ffffff;
+                color:#0f172a;
                 letter-spacing:-0.3px;
             }
 
             .planning-preview-close {
-                width:36px;
-                height:36px;
+                width:34px;
+                height:34px;
                 border-radius:10px;
-                border:1px solid rgba(255,255,255,0.12);
-                background:rgba(255,255,255,0.06);
-                color:rgba(255,255,255,0.7);
+                border:1px solid #e2e8f0;
+                background:#ffffff;
+                color:#64748b;
                 font-size:20px;
                 display:flex;
                 align-items:center;
                 justify-content:center;
                 cursor:pointer;
-                transition:all 0.2s ease;
+                transition:all 0.16s ease;
                 line-height:1;
             }
 
             .planning-preview-close:hover {
-                background:rgba(244,63,94,0.2);
-                border-color:rgba(244,63,94,0.5);
-                color:#f43f5e;
-                transform:rotate(90deg);
+                background:#fef2f2;
+                border-color:#fecaca;
+                color:#dc2626;
             }
 
             .planning-preview-form {
                 display:grid;
                 grid-template-columns:repeat(3,1fr);
-                gap:16px;
-                padding:24px 28px;
+                gap:14px;
+                padding:22px 26px;
             }
 
             .planning-preview-field {
@@ -3678,7 +3143,7 @@
             .planning-preview-field label {
                 font-size:11px;
                 font-weight:700;
-                color:rgba(255,255,255,0.55);
+                color:#475569;
                 text-transform:uppercase;
                 letter-spacing:0.5px;
             }
@@ -3688,39 +3153,40 @@
             .planning-preview-field textarea {
                 width:100%;
                 box-sizing:border-box;
-                padding:11px 14px;
-                background:rgba(255,255,255,0.05);
-                border:1px solid rgba(255,255,255,0.1);
-                border-radius:12px;
+                padding:10px 13px;
+                background:#f8fafc;
+                border:1.5px solid #e2e8f0;
+                border-radius:11px;
                 outline:none;
-                color:#f8fafc;
+                color:#0f172a;
                 font-size:13px;
+                font-weight:600;
                 font-family:'Plus Jakarta Sans',sans-serif;
-                transition:border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+                transition:border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
             }
 
             .planning-preview-field input[readonly] {
-                background:rgba(255,255,255,0.03);
-                color:rgba(255,255,255,0.45);
-                border-color:rgba(255,255,255,0.06);
+                background:#f1f5f9;
+                color:#64748b;
+                border-color:#e2e8f0;
                 cursor:default;
             }
 
             .planning-preview-field select option {
-                background:#0f1123;
-                color:#ffffff;
+                background:#ffffff;
+                color:#0f172a;
             }
 
             .planning-preview-field input:not([readonly]):focus,
             .planning-preview-field select:focus,
             .planning-preview-field textarea:focus {
-                border-color:rgba(167,139,250,0.6);
-                background:rgba(139,92,246,0.12);
-                box-shadow:0 0 0 3px rgba(139,92,246,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
+                border-color:#2563eb;
+                background:#ffffff;
+                box-shadow:0 0 0 3px rgba(37,99,235,0.12);
             }
 
             .planning-preview-section {
-                padding:0 28px 20px;
+                padding:0 26px 20px;
             }
 
             .planning-preview-section-header {
@@ -3728,36 +3194,36 @@
                 align-items:center;
                 justify-content:space-between;
                 gap:12px;
-                margin-bottom:14px;
-                padding-top:10px;
-                border-top:1px solid rgba(255,255,255,0.07);
+                margin-bottom:12px;
+                padding-top:12px;
+                border-top:1px solid #f1f5f9;
             }
 
             .planning-preview-section-header h3 {
                 margin:0;
                 font-size:14px;
-                font-weight:700;
-                color:rgba(255,255,255,0.88);
+                font-weight:800;
+                color:#0f172a;
             }
 
             .planning-add-label {
                 display:inline-flex;
                 align-items:center;
                 gap:5px;
-                color:#a78bfa;
+                color:#2563eb;
                 font-size:12px;
                 font-weight:700;
                 cursor:pointer;
                 padding:6px 12px;
                 border-radius:8px;
-                border:1px solid rgba(167,139,250,0.25);
-                background:rgba(139,92,246,0.08);
-                transition:all 0.2s ease;
+                border:1px solid #bfdbfe;
+                background:#eff6ff;
+                transition:all 0.16s ease;
             }
 
             .planning-add-label:hover {
-                background:rgba(139,92,246,0.18);
-                border-color:rgba(167,139,250,0.45);
+                background:#dbeafe;
+                border-color:#93c5fd;
             }
 
             .planning-preview-search {
@@ -3768,25 +3234,27 @@
             .planning-preview-search input {
                 width:100%;
                 box-sizing:border-box;
-                padding:11px 14px 11px 40px;
-                background:rgba(255,255,255,0.06);
-                border:1px solid rgba(255,255,255,0.1);
-                border-radius:12px;
+                padding:10px 14px 10px 38px;
+                background:#f8fafc;
+                border:1.5px solid #e2e8f0;
+                border-radius:11px;
                 outline:none;
-                color:rgba(255,255,255,0.85);
+                color:#0f172a;
                 font-size:13px;
+                font-weight:500;
                 font-family:'Plus Jakarta Sans',sans-serif;
-                background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
+                background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
                 background-repeat:no-repeat;
-                background-position:13px center;
-                transition:border-color 0.2s ease, background-color 0.2s ease;
+                background-position:12px center;
+                transition:border-color 0.16s ease, background-color 0.16s ease;
             }
 
-            .planning-preview-search input::placeholder { color:rgba(255,255,255,0.35); }
+            .planning-preview-search input::placeholder { color:#94a3b8; }
 
             .planning-preview-search input:focus {
-                border-color:rgba(167,139,250,0.5);
-                background-color:rgba(139,92,246,0.08);
+                border-color:#2563eb;
+                background-color:#ffffff;
+                box-shadow:0 0 0 3px rgba(37,99,235,0.12);
             }
 
             .planning-preview-search-result {
@@ -3798,20 +3266,19 @@
                 display:none;
                 max-height:220px;
                 overflow:auto;
-                background:rgba(15,17,35,0.97);
-                backdrop-filter:blur(20px);
-                border:1px solid rgba(255,255,255,0.12);
+                background:#ffffff;
+                border:1px solid #e2e8f0;
                 border-radius:14px;
-                box-shadow:0 16px 40px rgba(0,0,0,0.6);
+                box-shadow:0 16px 36px rgba(15,23,42,0.14);
             }
 
             .planning-preview-search-result.active {
                 display:block;
-                animation:dropIn 0.2s ease;
+                animation:dropIn 0.18s ease;
             }
 
             @keyframes dropIn {
-                from { opacity:0; transform:translateY(-8px); }
+                from { opacity:0; transform:translateY(-6px); }
                 to { opacity:1; transform:translateY(0); }
             }
 
@@ -3821,48 +3288,49 @@
                 justify-content:space-between;
                 gap:10px;
                 padding:10px 14px;
-                border-bottom:1px solid rgba(255,255,255,0.05);
-                transition:background 0.15s ease;
+                border-bottom:1px solid #f1f5f9;
+                transition:background 0.14s ease;
             }
 
-            .planning-preview-search-item:hover { background:rgba(139,92,246,0.14); }
+            .planning-preview-search-item:hover { background:#eff6ff; }
 
             .planning-preview-search-info { min-width:0; flex:1; }
 
             .planning-preview-search-name {
                 font-weight:700;
                 font-size:13px;
-                color:rgba(255,255,255,0.9);
+                color:#0f172a;
             }
 
             .planning-preview-search-id {
-                color:rgba(255,255,255,0.4);
+                color:#64748b;
                 font-size:11px;
                 margin-top:2px;
             }
 
             .planning-preview-search-add {
-                border:1px solid rgba(167,139,250,0.4);
-                background:rgba(139,92,246,0.2);
-                color:#a78bfa;
+                border:1px solid #bfdbfe;
+                background:#eff6ff;
+                color:#2563eb;
                 padding:6px 12px;
                 border-radius:8px;
                 font-size:12px;
                 font-weight:700;
                 cursor:pointer;
-                transition:all 0.2s ease;
+                transition:all 0.15s ease;
                 white-space:nowrap;
             }
 
             .planning-preview-search-add:hover {
-                background:rgba(139,92,246,0.4);
-                border-color:rgba(167,139,250,0.6);
+                background:#2563eb;
+                border-color:#2563eb;
+                color:#ffffff;
             }
 
             .planning-preview-search-empty {
-                padding:20px;
+                padding:18px;
                 text-align:center;
-                color:rgba(255,255,255,0.35);
+                color:#64748b;
                 font-size:13px;
             }
 
@@ -3874,37 +3342,37 @@
                 overflow:auto;
                 padding-right:4px;
                 scrollbar-width:thin;
-                scrollbar-color:rgba(255,255,255,0.1) transparent;
+                scrollbar-color:#cbd5e1 transparent;
             }
 
             .planning-preview-karyawan-row {
                 display:grid;
-                grid-template-columns:36px 1fr 160px 38px;
+                grid-template-columns:34px 1fr 160px 36px;
                 gap:8px;
                 align-items:center;
-                padding:10px 12px;
-                background:rgba(255,255,255,0.04);
-                border:1px solid rgba(255,255,255,0.08);
+                padding:9px 11px;
+                background:#f8fafc;
+                border:1px solid #e2e8f0;
                 border-radius:12px;
-                transition:background 0.2s ease, border-color 0.2s ease;
+                transition:background 0.15s ease, border-color 0.15s ease;
             }
 
             .planning-preview-karyawan-row:hover {
-                background:rgba(139,92,246,0.08);
-                border-color:rgba(167,139,250,0.2);
+                background:#eff6ff;
+                border-color:#bfdbfe;
             }
 
             .planning-preview-number {
                 text-align:center;
                 font-weight:800;
                 font-size:12px;
-                color:rgba(255,255,255,0.35);
+                color:#2563eb;
                 width:28px;
                 height:28px;
                 display:flex;
                 align-items:center;
                 justify-content:center;
-                background:rgba(255,255,255,0.06);
+                background:#eff6ff;
                 border-radius:8px;
             }
 
@@ -3912,19 +3380,19 @@
                 width:100%;
                 box-sizing:border-box;
                 padding:8px 11px;
-                background:rgba(255,255,255,0.06);
-                border:1px solid rgba(255,255,255,0.08);
+                background:#ffffff;
+                border:1px solid #e2e8f0;
                 border-radius:9px;
                 outline:none;
-                color:rgba(255,255,255,0.85);
+                color:#0f172a;
                 font-size:13px;
+                font-weight:600;
                 font-family:'Plus Jakarta Sans',sans-serif;
-                transition:border-color 0.2s ease, background 0.2s ease;
+                transition:border-color 0.15s ease;
             }
 
             .planning-preview-karyawan-row input:focus {
-                border-color:rgba(167,139,250,0.4);
-                background:rgba(139,92,246,0.08);
+                border-color:#2563eb;
             }
 
             .planning-btn-delete {
@@ -3933,19 +3401,18 @@
                 display:flex;
                 align-items:center;
                 justify-content:center;
-                border:1px solid rgba(244,63,94,0.3);
+                border:1px solid #fecaca;
                 border-radius:9px;
-                background:rgba(244,63,94,0.1);
-                color:#f43f5e;
+                background:#fef2f2;
+                color:#dc2626;
                 cursor:pointer;
                 font-size:16px;
-                transition:all 0.2s ease;
+                transition:all 0.15s ease;
             }
 
             .planning-btn-delete:hover {
-                background:rgba(244,63,94,0.25);
-                border-color:rgba(244,63,94,0.5);
-                transform:scale(1.05);
+                background:#fee2e2;
+                border-color:#fca5a5;
             }
 
             .planning-preview-actions {
@@ -3953,78 +3420,60 @@
                 justify-content:flex-end;
                 align-items:center;
                 gap:10px;
-                padding:16px 28px 24px;
-                border-top:1px solid rgba(255,255,255,0.07);
+                padding:16px 26px 22px;
+                border-top:1px solid #f1f5f9;
             }
 
             .planning-preview-cancel {
                 display:inline-flex;
                 align-items:center;
                 gap:7px;
-                border:1px solid rgba(255,255,255,0.15);
-                background:rgba(255,255,255,0.07);
-                backdrop-filter:blur(8px);
-                color:rgba(255,255,255,0.7);
-                padding:11px 20px;
-                border-radius:12px;
+                border:1px solid #e2e8f0;
+                background:#ffffff;
+                color:#475569;
+                padding:10px 18px;
+                border-radius:11px;
                 font-size:13px;
-                font-weight:600;
+                font-weight:700;
                 cursor:pointer;
                 font-family:'Plus Jakarta Sans',sans-serif;
-                transition:all 0.2s ease;
+                transition:all 0.16s ease;
             }
 
             .planning-preview-cancel:hover {
-                background:rgba(255,255,255,0.12);
-                border-color:rgba(255,255,255,0.25);
-                color:#fff;
-                transform:translateY(-1px);
+                background:#f1f5f9;
+                color:#0f172a;
             }
 
             .planning-btn-save {
                 display:inline-flex;
                 align-items:center;
                 gap:8px;
-                border:1px solid rgba(167,139,250,0.5);
-                background:linear-gradient(135deg,#6d28d9 0%,#7c3aed 50%,#8b5cf6 100%);
-                color:#fff;
-                padding:11px 24px;
-                border-radius:12px;
+                border:none;
+                background:linear-gradient(135deg,#2563eb 0%,#4f46e5 100%);
+                color:#ffffff;
+                padding:10px 22px;
+                border-radius:11px;
                 font-size:13px;
                 font-weight:800;
                 cursor:pointer;
                 font-family:'Plus Jakarta Sans',sans-serif;
-                box-shadow:0 8px 24px rgba(109,40,217,0.35);
-                transition:all 0.25s ease;
-                position:relative;
-                overflow:hidden;
-            }
-
-            .planning-btn-save::after {
-                content:'';
-                position:absolute;
-                inset:0;
-                background:linear-gradient(rgba(255,255,255,0.15),transparent);
-                opacity:0;
-                transition:opacity 0.3s ease;
+                box-shadow:0 8px 20px rgba(37,99,235,0.28);
+                transition:all 0.18s ease;
             }
 
             .planning-btn-save:hover {
-                background:linear-gradient(135deg,#5b21b6 0%,#6d28d9 50%,#7c3aed 100%);
-                box-shadow:0 12px 32px rgba(109,40,217,0.5);
-                transform:translateY(-2px);
+                transform:translateY(-1px);
+                box-shadow:0 10px 24px rgba(37,99,235,0.36);
             }
-
-            .planning-btn-save:hover::after { opacity:1; }
-            .planning-btn-save:active { transform:translateY(0); }
 
             @media(max-width:700px) {
                 .planning-preview-form { grid-template-columns:1fr; padding:16px 18px; }
                 .planning-preview-section { padding:0 18px 16px; }
-                .planning-preview-header { padding:18px 20px 16px; }
+                .planning-preview-header { padding:16px 18px 14px; }
                 .planning-preview-actions { padding:14px 18px 20px; flex-direction:column; }
                 .planning-preview-cancel,.planning-btn-save { width:100%; justify-content:center; }
-                .planning-preview-karyawan-row { grid-template-columns:32px 1fr 38px; }
+                .planning-preview-karyawan-row { grid-template-columns:32px 1fr 36px; }
                 .preview-id-input { grid-column:2; }
             }
         `;
@@ -5498,8 +4947,10 @@
 
             // 3. BERSIHKAN LOCALSTORAGE & CACHE
             localStorage.removeItem(getPlanningEvidenceKey(idTarget));
+            invalidatePlanningEvidenceMemo(idTarget);
             if (kodePlanning) {
                 localStorage.removeItem(getPlanningEvidenceKey(kodePlanning));
+                invalidatePlanningEvidenceMemo(kodePlanning);
             }
             if (typeof planningPreviewBlobCache !== "undefined" && planningPreviewBlobCache) {
                 planningPreviewBlobCache.delete(idTarget);
@@ -6691,6 +6142,22 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
                             LOGISTICS & SUPPLY CHAIN MANAGEMENT
                         </div>
 
+                        <div style="margin-top:6px;">
+                            <span style="
+                                display:inline-flex;
+                                align-items:center;
+                                padding:2px 8px;
+                                border-radius:4px;
+                                background:rgba(32,32,32,0.09);
+                                border:1px solid rgba(32,32,32,0.16);
+                                font-size:8.5px;
+                                font-weight:700;
+                                color:#202020;
+                                letter-spacing:.25px;
+                                line-height:1.25;
+                            ">Copyright &copy; Daysheet.id</span>
+                        </div>
+
                     </div>
 
 
@@ -7550,102 +7017,126 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
 
 
         let canvas = null;
+        let blob = null;
 
-
-        try {
-
-            canvas =
-                await html2canvas(
-                    exportContainer,
-                    {
-                        scale:1.5,
-
-                        width:794,
-
-                        height:exportHeight,
-
-                        windowWidth:794,
-
-                        windowHeight:exportHeight,
-
-                        backgroundColor:"#ffffff",
-
-                        useCORS:true,
-
-                        allowTaint:false,
-
-                        imageTimeout:5000,
-
-                        logging:false,
-
-                        scrollX:0,
-
-                        scrollY:0,
-
-                        foreignObjectRendering:false,
-
-                        removeContainer:true
-                    }
-                );
-
+        if (!window.__planburPngBlobCache) {
+            window.__planburPngBlobCache = new Map();
         }
 
-        catch (firstError) {
-
-            console.warn(
-                "[PNG] Render pertama gagal:",
-                firstError
-            );
-
-
-            if (logo) {
-                logo.style.display = "none";
+        const pngSignature = (function (str) {
+            let h = 2166136261;
+            for (let i = 0; i < str.length; i++) {
+                h ^= str.charCodeAt(i);
+                h = Math.imul(h, 16777619);
             }
+            return (h >>> 0).toString(36) + "_" + str.length + "_" + exportHeight;
+        })(exportContainer.outerHTML || exportContainer.innerHTML || String(idPlanning));
 
-
-            canvas =
-                await html2canvas(
-                    exportContainer,
-                    {
-                        scale:1,
-
-                        width:794,
-
-                        height:exportHeight,
-
-                        windowWidth:794,
-
-                        windowHeight:exportHeight,
-
-                        backgroundColor:"#ffffff",
-
-                        useCORS:false,
-
-                        allowTaint:false,
-
-                        imageTimeout:2000,
-
-                        logging:false,
-
-                        scrollX:0,
-
-                        scrollY:0,
-
-                        foreignObjectRendering:false,
-
-                        removeContainer:true
-                    }
-                );
-
+        const cachedPngEntry = window.__planburPngBlobCache.get(pngSignature);
+        if (cachedPngEntry && cachedPngEntry.blob && cachedPngEntry.blob.size > 0) {
+            blob = cachedPngEntry.blob;
         }
 
+        if (!blob) {
+            let isolatedIframe = null;
+            try {
+                isolatedIframe = document.createElement("iframe");
+                isolatedIframe.setAttribute("aria-hidden", "true");
+                isolatedIframe.style.cssText =
+                    "position:fixed;left:-99999px;top:0;width:794px;height:" +
+                    exportHeight +
+                    "px;border:0;opacity:0;pointer-events:none;";
+                document.body.appendChild(isolatedIframe);
 
-        if (!canvas) {
+                const iframeDoc = isolatedIframe.contentDocument || isolatedIframe.contentWindow?.document;
+                if (iframeDoc) {
+                    iframeDoc.open();
+                    iframeDoc.write(
+                        "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>" +
+                        "*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}" +
+                        "html,body{width:794px;height:" + exportHeight + "px;background:#ffffff;" +
+                        "font-family:'Plus Jakarta Sans',Arial,sans-serif;-webkit-font-smoothing:antialiased;}" +
+                        "</style></head><body></body></html>"
+                    );
+                    iframeDoc.close();
 
-            throw new Error(
-                "Canvas PNG gagal dibuat."
-            );
+                    const clonedNode = iframeDoc.importNode(exportContainer, true);
+                    clonedNode.style.position = "static";
+                    clonedNode.style.left = "0";
+                    clonedNode.style.top = "0";
+                    iframeDoc.body.appendChild(clonedNode);
 
+                    canvas = await html2canvas(clonedNode, {
+                        scale: 1.5,
+                        width: 794,
+                        height: exportHeight,
+                        windowWidth: 794,
+                        windowHeight: exportHeight,
+                        backgroundColor: "#ffffff",
+                        useCORS: true,
+                        allowTaint: false,
+                        imageTimeout: 4000,
+                        logging: false,
+                        scrollX: 0,
+                        scrollY: 0,
+                        foreignObjectRendering: false,
+                        removeContainer: true
+                    });
+                }
+            } catch (isolatedErr) {
+                console.warn("[PNG] Render isolated iframe fallback:", isolatedErr);
+                canvas = null;
+            } finally {
+                if (isolatedIframe && isolatedIframe.parentNode) {
+                    isolatedIframe.parentNode.removeChild(isolatedIframe);
+                }
+            }
+        }
+
+        if (!blob && !canvas) {
+            try {
+                canvas = await html2canvas(exportContainer, {
+                    scale: 1.5,
+                    width: 794,
+                    height: exportHeight,
+                    windowWidth: 794,
+                    windowHeight: exportHeight,
+                    backgroundColor: "#ffffff",
+                    useCORS: true,
+                    allowTaint: false,
+                    imageTimeout: 5000,
+                    logging: false,
+                    scrollX: 0,
+                    scrollY: 0,
+                    foreignObjectRendering: false,
+                    removeContainer: true
+                });
+            } catch (firstError) {
+                console.warn("[PNG] Render pertama gagal:", firstError);
+                if (logo) {
+                    logo.style.display = "none";
+                }
+                canvas = await html2canvas(exportContainer, {
+                    scale: 1,
+                    width: 794,
+                    height: exportHeight,
+                    windowWidth: 794,
+                    windowHeight: exportHeight,
+                    backgroundColor: "#ffffff",
+                    useCORS: false,
+                    allowTaint: false,
+                    imageTimeout: 2000,
+                    logging: false,
+                    scrollX: 0,
+                    scrollY: 0,
+                    foreignObjectRendering: false,
+                    removeContainer: true
+                });
+            }
+        }
+
+        if (!blob && !canvas) {
+            throw new Error("Canvas PNG gagal dibuat.");
         }
 
 
@@ -7653,209 +7144,139 @@ async function cetakPlanningPNG(idPlanning, options = {}) {
            BLOB
         ===================================================== */
 
-        showPlanningLoading(
-            "Menyiapkan file PNG..."
-        );
-
-
-        const blob =
-            await new Promise(
-                function(resolve, reject) {
-
-                    try {
-                        canvas.toBlob(
-                            function(hasil) {
-                                if (!hasil) {
-                                    reject(new Error("PNG gagal dibuat."));
-                                    return;
-                                }
-
-                                if (hasil.size <= 0) {
-                                    reject(new Error("File PNG kosong."));
-                                    return;
-                                }
-
-                                resolve(hasil);
-                            },
-                            "image/png"
-                        );
-                    }
-                    catch (e) {
-                        reject(e);
-                    }
+        if (!blob) {
+            showPlanningLoading("Menyiapkan file PNG...");
+            blob = await new Promise(function (resolve, reject) {
+                try {
+                    canvas.toBlob(function (hasil) {
+                        if (!hasil || hasil.size <= 0) {
+                            reject(new Error("PNG gagal dibuat."));
+                            return;
+                        }
+                        resolve(hasil);
+                    }, "image/png");
+                } catch (e) {
+                    reject(e);
                 }
-            );
+            });
 
+            if (window.__planburPngBlobCache.size > 24) {
+                const oldestKey = window.__planburPngBlobCache.keys().next().value;
+                window.__planburPngBlobCache.delete(oldestKey);
+            }
+            window.__planburPngBlobCache.set(pngSignature, { blob: blob, createdAt: Date.now() });
+        }
 
-        const namaFile =
-            String(idPlanning)
-                .replace(
-                    /[^a-zA-Z0-9_-]/g,
-                    "_"
-                );
+        const namaFile = String(idPlanning).replace(/[^a-zA-Z0-9_-]/g, "_");
+
+        if (shouldDownload) {
+            objectURL = URL.createObjectURL(blob);
+            downloadLink = document.createElement("a");
+            downloadLink.style.display = "none";
+            downloadLink.href = objectURL;
+            downloadLink.download = `SPL_${namaFile}.png`;
+            document.body.appendChild(downloadLink);
+            try {
+                downloadLink.click();
+            } catch (e) {
+                console.error("[PNG] Download error:", e);
+            }
+        }
 
         let previewSaved = !shouldSavePreview;
         let previewError = null;
 
         if (shouldSavePreview) {
-            showPlanningLoading("Menyimpan preview ke Supabase...");
-
-            try {
-                await uploadPlanningPreview(idPlanning, blob);
+            if (shouldDownload) {
+                // Download sudah berjalan instan; sinkronkan preview_url ke Supabase di background
                 previewSaved = true;
-            } catch (error) {
-                previewError = error;
-                console.error("[PREVIEW PNG] GAGAL DISIMPAN:", error);
-            }
-        }
-
-        if (shouldDownload) {
-            objectURL = URL.createObjectURL(blob);
-            downloadLink = document.createElement("a");
-
-            downloadLink.style.position = "fixed";
-            downloadLink.style.left = "-99999px";
-            downloadLink.style.top = "0";
-            downloadLink.style.width = "1px";
-            downloadLink.style.height = "1px";
-            downloadLink.style.opacity = "0";
-            downloadLink.href = objectURL;
-            downloadLink.download = `SPL_${namaFile}.png`;
-            document.body.appendChild(downloadLink);
-
-            await new Promise(function(resolve) {
-                requestAnimationFrame(function() {
-                    try {
-                        downloadLink.click();
-                    }
-                    catch (e) {
-                        console.error("[PNG] Download error:", e);
-                    }
-                    setTimeout(resolve, 500);
+                uploadPlanningPreview(idPlanning, blob).catch(function (error) {
+                    console.warn("[PREVIEW PNG] Sinkronisasi background gagal:", error);
                 });
-            });
+            } else {
+                showPlanningLoading("Menyimpan preview ke Supabase...");
+                try {
+                    await uploadPlanningPreview(idPlanning, blob);
+                    previewSaved = true;
+                } catch (error) {
+                    previewError = error;
+                    console.error("[PREVIEW PNG] GAGAL DISIMPAN:", error);
+                }
+            }
         }
 
         /* =====================================================
            SUCCESS
         ===================================================== */
 
-        if (
-            !silent &&
-            typeof showPlanningToast ===
-            "function"
-        ) {
-
+        if (!silent && typeof showPlanningToast === "function") {
             showPlanningToast(
                 previewSaved ? "success" : "warning",
                 previewSaved
-                    ? "PNG berhasil dibuat"
+                    ? "PNG berhasil diunduh"
                     : "PNG dibuat, preview gagal disimpan",
                 previewSaved
-                    ? `SPL ${idPlanning} berhasil dibuat dan preview_url diperbarui.`
+                    ? `SPL ${idPlanning} siap diunduh.`
                     : (previewError?.message || "File berhasil dibuat tetapi preview_url belum diperbarui.")
             );
-
         }
 
         return previewSaved;
 
-    }
+    } catch (error) {
 
+        console.error("[CETAK PNG] GAGAL:", error);
 
-    catch (error) {
-
-        console.error(
-            "[CETAK PNG] GAGAL:",
-            error
-        );
-
-
-        if (
-            !silent &&
-            typeof showPlanningToast ===
-            "function"
-        ) {
-
+        if (!silent && typeof showPlanningToast === "function") {
             showPlanningToast(
                 "error",
                 "PNG gagal dibuat",
-                error &&
-                error.message
+                error && error.message
                     ? error.message
                     : "Terjadi kesalahan saat membuat PNG."
             );
-
-        }
-
-        else if (!silent) {
-
+        } else if (!silent) {
             alert(
-                error &&
-                error.message
+                error && error.message
                     ? error.message
                     : "PNG gagal dibuat."
             );
-
         }
 
         return false;
 
-    }
-
- 
-    finally {
+    } finally {
 
         try {
-
-            if (
-                downloadLink &&
-                downloadLink.parentNode
-            ) {
+            if (downloadLink && downloadLink.parentNode) {
                 downloadLink.parentNode.removeChild(downloadLink);
             }
+        } catch (e) {}
 
+        if (objectURL) {
+            const urlToRevoke = objectURL;
+            setTimeout(function () {
+                try {
+                    URL.revokeObjectURL(urlToRevoke);
+                } catch (e) {}
+            }, 5000);
         }
 
-        catch (e) {}
-
-
         try {
-
-            if (objectURL) {
-                URL.revokeObjectURL(objectURL);
+            if (exportContainer && exportContainer.parentNode) {
+                exportContainer.parentNode.removeChild(exportContainer);
             }
-
-        }
-
-        catch (e) {}
+        } catch (e) {}
 
 
-        try {
-
-            if (
-                exportContainer &&
-                exportContainer.parentNode
-            ) {
-
-                exportContainer.parentNode
-                    .removeChild(
-                        exportContainer
-                    );
-
+        if (!previousLoadingState) {
+            try {
+                hidePlanningLoading();
             }
-
+            catch (e) {}
         }
 
-        catch (e) {}
-
-
-        try {
-            hidePlanningLoading();
-        }
-        catch (e) {}
-
-        planningCRUDLoading = false;
+        planningCRUDLoading = previousLoadingState;
 
     }
 
@@ -8083,6 +7504,8 @@ initPlanningFilters();
 
     } else {
 
+        initPlanningFilters();
+
         initPlanningEvents();
 
         initPlanningGlobalEvents();
@@ -8139,14 +7562,25 @@ function initPlanningFilters() {
     ========================================================= */
 
     function syncAndRenderPlanning() {
-        if (typeof renderPlanning === "function") {
-            renderPlanning();
+        const planningSection = document.getElementById("planning");
+        const isPlanningVisible = planningSection && planningSection.classList.contains("active-page");
+
+        if (isPlanningVisible) {
+            if (typeof updateKaryawanDropdown === "function") {
+                updateKaryawanDropdown();
+            }
+            if (typeof renderPlanning === "function") {
+                renderPlanning();
+            }
+            if (typeof renderPlanningKaryawan === "function") {
+                renderPlanningKaryawan("");
+            }
+        } else if (typeof window.__invalidatePageSignature === "function") {
+            window.__invalidatePageSignature("planning");
         }
-        if (typeof updateKaryawanDropdown === "function") {
-            updateKaryawanDropdown();
-        }
-        if (typeof renderPlanningKaryawan === "function") {
-            renderPlanningKaryawan("");
+
+        if (typeof window.syncShellCounters === "function") {
+            window.syncShellCounters();
         }
     }
 

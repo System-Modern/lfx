@@ -63,23 +63,23 @@ const AppState = {
 
 const APP_COLORS = {
 
-    primary: "#D71920",
+    primary: "#2563EB",
 
-    primaryDark: "#B51218",
+    primaryDark: "#1D4ED8",
 
-    primarySoft: "#FDEBEC",
-
-
-    yellow: "#F7F40F",
-
-    yellowDark: "#E8E500",
-
-    yellowSoft: "#FFFDE6",
+    primarySoft: "#EFF6FF",
 
 
-    navy: "#172033",
+    yellow: "#F59E0B",
 
-    navyLight: "#24324A",
+    yellowDark: "#D97706",
+
+    yellowSoft: "#FFFBEB",
+
+
+    navy: "#0F172A",
+
+    navyLight: "#334155",
 
 
     slate: "#64748B",
@@ -89,12 +89,12 @@ const APP_COLORS = {
 
     amber: "#F59E0B",
 
-    amberSoft: "#FFF7E6",
+    amberSoft: "#FFFBEB",
 
 
-    green: "#16A34A",
+    green: "#10B981",
 
-    greenSoft: "#EAF8EF",
+    greenSoft: "#ECFDF5",
 
 
     blue: "#2563EB",
@@ -102,24 +102,24 @@ const APP_COLORS = {
     blueSoft: "#EFF6FF",
 
 
-    purple: "#7C3AED",
+    purple: "#4F46E5",
 
-    purpleSoft: "#F5F3FF",
+    purpleSoft: "#EEF2FF",
 
 
-    background: "#F6F7F9",
+    background: "#F4F7FB",
 
     surface: "#FFFFFF",
 
-    border: "#E5E7EB",
+    border: "#E2E8F0",
 
 
-    text: "#172033",
+    text: "#0F172A",
 
     textSoft: "#64748B",
 
 
-    danger: "#DC2626"
+    danger: "#EF4444"
 
 };
 
@@ -1129,28 +1129,150 @@ function formatPlanningDuration(
 
 
 /* =========================================================
-   NAVIGASI
+   NAVIGASI & SIGNATURE CACHE
 ========================================================= */
+
+const renderedPageSignatures = Object.create(null);
+let renderedDropdownHash = null;
+let cachedNavPages = null;
+let cachedDesktopNavs = null;
+let cachedMobileNavs = null;
+
+function hashDigestStep(h, value) {
+    const str = String(value ?? "");
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+}
+
+function getKaryawanDigest() {
+    const list = getKaryawanData();
+    let h = hashDigestStep(2166136261, list.length);
+    for (let i = 0; i < list.length; i++) {
+        const k = list[i];
+        if (!k) continue;
+        h = hashDigestStep(h, k.id);
+        h = hashDigestStep(h, k.nama);
+        h = hashDigestStep(h, k.status);
+        h = hashDigestStep(h, k.tanggalLahir);
+        h = hashDigestStep(h, k.tanggalPenalti);
+        h = hashDigestStep(h, k.alasanPenalti);
+        h = hashDigestStep(h, k.updatedAt || k.updated_at || "");
+    }
+    return h;
+}
+
+function getPlanningDigest() {
+    const list = getPlanningData();
+    let h = hashDigestStep(2166136261, list.length);
+    h = hashDigestStep(h, window.__planburEvidenceVersion || 0);
+    for (let i = 0; i < list.length; i++) {
+        const p = list[i];
+        if (!p) continue;
+        h = hashDigestStep(h, p.idPlanning || p.kodePlanning || p.id);
+        h = hashDigestStep(h, p.tanggal);
+        h = hashDigestStep(h, p.jamMulai || p.jam_mulai);
+        h = hashDigestStep(h, p.jamSelesai || p.jam_selesai);
+        h = hashDigestStep(h, p.durasiMenit || p.durasi);
+        h = hashDigestStep(h, p.jenisLembur || p.jenis_lembur);
+        h = hashDigestStep(h, p.keterangan);
+        h = hashDigestStep(h, p.buktiUrl || p.bukti_url || "");
+        h = hashDigestStep(h, p.updatedAt || p.updated_at || "");
+        h = hashDigestStep(h, Array.isArray(p.karyawan) ? p.karyawan.length : 0);
+    }
+    return h;
+}
+
+function getPageRenderSignature(pageId) {
+    const kDigest = getKaryawanDigest();
+    const pDigest = getPlanningDigest();
+
+    if (pageId === "dashboard") {
+        const dari = appEl("dashboardFilterDari")?.value || "";
+        const sampai = appEl("dashboardFilterSampai")?.value || "";
+        return `d|${dari}|${sampai}|${pDigest}|${kDigest}`;
+    }
+
+    if (pageId === "karyawan") {
+        const search = appEl("searchKaryawan")?.value || "";
+        return `k|${search}|${kDigest}`;
+    }
+
+    if (pageId === "planning") {
+        const tgl = appEl("filterTanggal")?.value || "";
+        const kar = appEl("filterKaryawan")?.value || "";
+        const chip = document.querySelector("#planning .planning-chip.active")?.id || "";
+        return `p|${tgl}|${kar}|${chip}|${pDigest}|${kDigest}`;
+    }
+
+    if (pageId === "laporan") {
+        const lapKar = appEl("laporanKaryawan")?.value || "";
+        const lapAwal = appEl("laporanTanggalAwal")?.value || "";
+        const lapAkhir = appEl("laporanTanggalAkhir")?.value || "";
+        return `l|${lapKar}|${lapAwal}|${lapAkhir}|${pDigest}|${kDigest}`;
+    }
+
+    return `${pageId}|${pDigest}|${kDigest}`;
+}
+
+function hasPageRenderedContent(pageId) {
+    if (pageId === "dashboard") {
+        return AppState.dashboardInitialized === true;
+    }
+    if (pageId === "karyawan") {
+        const tbody = appEl("tableKaryawan");
+        return Boolean(tbody && tbody.childElementCount > 0);
+    }
+    if (pageId === "planning") {
+        const tbody = appEl("planningTable");
+        return Boolean(tbody && tbody.childElementCount > 0);
+    }
+    if (pageId === "laporan") {
+        const tbody = appEl("laporanKaryawanTable");
+        return Boolean(tbody && tbody.childElementCount > 0);
+    }
+    return false;
+}
+
+window.__markPageRendered = function (pageId) {
+    if (pageId) {
+        renderedPageSignatures[pageId] = getPageRenderSignature(pageId);
+    }
+};
+
+window.__invalidatePageSignature = function (pageId) {
+    if (pageId) {
+        delete renderedPageSignatures[pageId];
+    } else {
+        Object.keys(renderedPageSignatures).forEach(function (key) {
+            delete renderedPageSignatures[key];
+        });
+    }
+};
+
+window.__markKaryawanDropdownRendered = function () {
+    renderedDropdownHash = getKaryawanDigest();
+};
 
 function showPage(
     pageId,
     button = null
 ) {
 
-    document
-        .querySelectorAll(
-            ".page"
-        )
-        .forEach(
-            page => {
+    if (!cachedNavPages || !cachedNavPages.length) {
+        cachedNavPages = Array.from(document.querySelectorAll(".page"));
+    }
 
-                page.classList.toggle(
-                    "active-page",
-                    page.id === pageId
-                );
-
-            }
-        );
+    cachedNavPages.forEach(
+        page => {
+            page.classList.toggle(
+                "active-page",
+                page.id === pageId
+            );
+        }
+    );
 
 
     const desktopNavIdMap = {
@@ -1160,33 +1282,32 @@ function showPage(
         laporan: "navBtnLaporan"
     };
 
-    document
-        .querySelectorAll(
-            ".menu-item"
-        )
-        .forEach(
-            item => {
-                item.classList.remove(
-                    "active"
-                );
-                if (desktopNavIdMap[pageId] && item.id === desktopNavIdMap[pageId]) {
-                    item.classList.add("active");
-                }
-            }
-        );
+    if (!cachedDesktopNavs || !cachedDesktopNavs.length) {
+        cachedDesktopNavs = Array.from(document.querySelectorAll(".menu-item"));
+    }
 
-    document
-        .querySelectorAll(
-            ".mobile-nav-item"
-        )
-        .forEach(
-            item => {
-                item.classList.toggle(
-                    "active",
-                    item.dataset.page === pageId
-                );
-            }
-        );
+    const activeDesktopNavId = desktopNavIdMap[pageId];
+    cachedDesktopNavs.forEach(
+        item => {
+            item.classList.toggle(
+                "active",
+                Boolean(activeDesktopNavId && item.id === activeDesktopNavId)
+            );
+        }
+    );
+
+    if (!cachedMobileNavs || !cachedMobileNavs.length) {
+        cachedMobileNavs = Array.from(document.querySelectorAll(".mobile-nav-item"));
+    }
+
+    cachedMobileNavs.forEach(
+        item => {
+            item.classList.toggle(
+                "active",
+                item.dataset.page === pageId
+            );
+        }
+    );
 
     if (button) {
         button.classList.add(
@@ -1194,8 +1315,8 @@ function showPage(
         );
     }
 
-    if (window.innerWidth <= 768) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+    if (window.innerWidth <= 768 && window.scrollY > 4) {
+        window.scrollTo(0, 0);
     }
 
 
@@ -1220,6 +1341,10 @@ function showPage(
 
     }
 
+    const targetSig = getPageRenderSignature(pageId);
+    if (renderedPageSignatures[pageId] === targetSig && hasPageRenderedContent(pageId)) {
+        return;
+    }
 
     switch (
         pageId
@@ -1252,9 +1377,10 @@ function showPage(
                 typeof updateKaryawanDropdown ===
                 "function"
             ) {
-
-                updateKaryawanDropdown();
-
+                const karHash = getKaryawanDigest();
+                if (renderedDropdownHash !== karHash) {
+                    updateKaryawanDropdown();
+                }
             }
 
 
@@ -1279,6 +1405,8 @@ function showPage(
             break;
 
     }
+
+    renderedPageSignatures[pageId] = getPageRenderSignature(pageId);
 
 }
 
@@ -1318,6 +1446,10 @@ function updateDashboard() {
 
     AppState.dashboardInitialized =
         true;
+
+    if (typeof window.__markPageRendered === "function") {
+        window.__markPageRendered("dashboard");
+    }
 
 }
 
@@ -1530,6 +1662,10 @@ function updateDashboardCharts(
 
     registerChartDataLabels();
 
+    if (Chart.defaults) {
+        Chart.defaults.animation = false;
+    }
+
 
     const planning =
         Array.isArray(
@@ -1729,6 +1865,8 @@ function renderPlanningChart(
 
 
                 options: {
+
+                    animation: false,
 
                     responsive:
                         true,
@@ -2211,6 +2349,8 @@ function renderDurasiChart(
 
 
                 options: {
+
+                    animation: false,
 
                     responsive:
                         true,
@@ -2752,6 +2892,8 @@ function renderKaryawanChart(
 
                 options: {
 
+                    animation: false,
+
                     indexAxis:
                         "y",
 
@@ -3030,11 +3172,31 @@ function closeAllModals() {
 
 
     if (
+        typeof closeEditKaryawanModal ===
+        "function"
+    ) {
+
+        closeEditKaryawanModal();
+
+    }
+
+
+    if (
         typeof closePlanningModal ===
         "function"
     ) {
 
         closePlanningModal();
+
+    }
+
+
+    if (
+        typeof closePreviewPlanning ===
+        "function"
+    ) {
+
+        closePreviewPlanning();
 
     }
 
@@ -3458,38 +3620,35 @@ function refreshApp() {
 
     debugAppData();
 
+    window.__invalidatePageSignature();
+    renderedDropdownHash = null;
 
-    if (
-        typeof updateKaryawanDropdown ===
-        "function"
-    ) {
+    const activePage =
+        document.querySelector(".page.active-page")?.id ||
+        "dashboard";
 
-        updateKaryawanDropdown();
-
+    if (activePage === "karyawan") {
+        if (typeof renderKaryawan === "function") {
+            renderKaryawan();
+        }
+    } else if (activePage === "planning") {
+        if (typeof updateKaryawanDropdown === "function") {
+            updateKaryawanDropdown();
+        }
+        if (typeof renderPlanning === "function") {
+            renderPlanning();
+        }
+    } else if (activePage === "laporan") {
+        if (typeof renderLaporanKaryawan === "function") {
+            renderLaporanKaryawan();
+        }
+    } else {
+        updateDashboard();
     }
 
-
-    if (
-        typeof renderKaryawan ===
-        "function"
-    ) {
-
-        renderKaryawan();
-
+    if (typeof window.syncShellCounters === "function") {
+        window.syncShellCounters();
     }
-
-
-    if (
-        typeof renderPlanning ===
-        "function"
-    ) {
-
-        renderPlanning();
-
-    }
-
-
-    updateDashboard();
 
 }
 
@@ -3738,8 +3897,29 @@ window.APP_COLORS =
    IKON TOMBOL
 ========================================================= */
 
+const INLINE_BUTTON_ICON_PATHS = {
+    eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"></path><circle cx="12" cy="12" r="3"></circle>',
+    pencil: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path><path d="m15 5 4 4"></path>',
+    download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>',
+    copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>',
+    "trash-2": '<path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line>',
+    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>',
+    save: '<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path><path d="M7 3v4a1 1 0 0 0 1 1h7"></path>',
+    plus: '<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>',
+    printer: '<polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect width="12" height="8" x="6" y="14"></rect>',
+    "log-in": '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line>',
+    search: '<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path>',
+    filter: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>',
+    "rotate-ccw": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path>',
+    "list-checks": '<path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path>',
+    "shield-check": '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path>',
+    x: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
+    "shield-alert": '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path>',
+    history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path>'
+};
+
 function enhanceButtonIcons(root = document) {
-    if (!window.lucide) {
+    if (!root || typeof root.querySelectorAll !== "function") {
         return;
     }
 
@@ -3774,63 +3954,414 @@ function enhanceButtonIcons(root = document) {
         [/riwayat/i, "history"]
     ];
 
-    root.querySelectorAll("button").forEach(function (button) {
-        if (button.classList.contains("menu-item") || button.querySelector("svg, [data-lucide]")) {
-            return;
+    const buttons = root.matches && root.matches("button")
+        ? [root]
+        : root.querySelectorAll("button");
+
+    for (let i = 0; i < buttons.length; i++) {
+        const button = buttons[i];
+        if (button.dataset.iconChecked === "1") {
+            continue;
+        }
+        button.dataset.iconChecked = "1";
+        if (
+            button.classList.contains("menu-item") ||
+            button.classList.contains("modal-close") ||
+            button.classList.contains("topbar-pulse") ||
+            button.classList.contains("table-hscroll-btn") ||
+            button.querySelector("svg, [data-lucide]")
+        ) {
+            continue;
         }
 
         const action = button.dataset.action || "";
-        const label = (button.textContent || "").trim();
-        const onclick = button.getAttribute("onclick") || "";
         let icon = iconByAction[action];
+        const label = icon ? "" : (button.textContent || "").trim();
 
         if (!icon && (button.classList.contains("modal-close") || button.classList.contains("planning-toast-close"))) {
             icon = "x";
         }
 
-        if (!icon && /close|tutup/i.test(onclick)) {
-            icon = "x";
+        if (!icon) {
+            const onclick = button.getAttribute("onclick") || "";
+            if (/close|tutup/i.test(onclick)) {
+                icon = "x";
+            }
         }
 
-        if (!icon) {
+        if (!icon && label) {
             const match = iconByLabel.find(function (entry) {
                 return entry[0].test(label);
             });
             icon = match?.[1];
         }
 
-        if (!icon) {
+        const svgBody = icon ? INLINE_BUTTON_ICON_PATHS[icon] : "";
+        if (!svgBody) {
+            continue;
+        }
+
+        button.insertAdjacentHTML(
+            "afterbegin",
+            `<svg class="lucide lucide-${icon}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${svgBody}</svg>`
+        );
+
+        if (!button.title) {
+            const textLabel = label || (button.textContent || "").trim();
+            if (textLabel) {
+                button.title = textLabel;
+            }
+        }
+    }
+}
+
+function enhanceShellChrome() {
+    // 1. Add categorized sidebar section labels once
+    const menu = document.querySelector(".sidebar .menu");
+    if (menu && !menu.querySelector(".menu-section-label")) {
+        const navDash = document.getElementById("navBtnDashboard");
+        const navLaporan = document.getElementById("navBtnLaporan");
+        if (navDash) {
+            const lblMain = document.createElement("div");
+            lblMain.className = "menu-section-label";
+            lblMain.textContent = "Menu Utama";
+            menu.insertBefore(lblMain, navDash);
+        }
+        if (navLaporan) {
+            const lblRep = document.createElement("div");
+            lblRep.className = "menu-section-label";
+            lblRep.textContent = "Laporan & Audit";
+            menu.insertBefore(lblRep, navLaporan);
+        }
+    }
+
+    // 2. Add Portal Cek Lembur button & Daysheet badge inside sidebar bottom panel once
+    const bottomPanel = document.querySelector(".sidebar-bottom-panel");
+    if (bottomPanel) {
+        if (!bottomPanel.querySelector(".sidebar-portal-actions")) {
+            const portalWrap = document.createElement("div");
+            portalWrap.className = "sidebar-portal-actions";
+            portalWrap.innerHTML = `
+                <a href="cek-lembur.html" class="sidebar-portal-btn" title="Buka Portal Cek Lembur Karyawan">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
+                    <span>Portal Cek Lembur</span>
+                </a>
+            `;
+            const watermark = bottomPanel.querySelector(".sidebar-brand-watermark");
+            bottomPanel.insertBefore(portalWrap, watermark || null);
+        }
+
+        if (!bottomPanel.querySelector(".sidebar-daysheet-badge")) {
+            const badge = document.createElement("a");
+            badge.href = "https://daysheet.id";
+            badge.target = "_blank";
+            badge.rel = "noopener noreferrer";
+            badge.title = "Kunjungi https://daysheet.id";
+            badge.className = "sidebar-daysheet-badge";
+            badge.innerHTML = `
+                <img src="logo-daysheet.png" alt="Daysheet.id" width="28" height="28" decoding="async" loading="lazy">
+                <div class="sidebar-daysheet-meta">
+                    <span>@copyright by</span>
+                    <strong>daysheet.id</strong>
+                </div>
+            `;
+            const watermark = bottomPanel.querySelector(".sidebar-brand-watermark");
+            if (watermark) {
+                watermark.replaceWith(badge);
+            } else {
+                bottomPanel.appendChild(badge);
+            }
+        }
+    }
+
+    // 3. Add crisp topbar quick CTA & refresh buttons alongside date-now once
+    function notifyShell(type, title, message) {
+        if (typeof window.showCRUDToast === "function") {
+            window.showCRUDToast(type, title, message);
             return;
         }
-
-        const iconElement = document.createElement("i");
-        iconElement.setAttribute("data-lucide", icon);
-        iconElement.setAttribute("aria-hidden", "true");
-        button.prepend(iconElement);
-
-        if (!button.title && label) {
-            button.title = label;
+        if (typeof window.showPlanningToast === "function") {
+            window.showPlanningToast(type, title, message);
         }
+    }
+
+    const topbar = document.querySelector(".topbar");
+    const dateNowEl = document.getElementById("tanggalSekarang");
+    if (topbar && !topbar.querySelector(".topbar-right")) {
+        const rightWrap = document.createElement("div");
+        rightWrap.className = "topbar-right";
+
+        const pulsePill = document.createElement("button");
+        pulsePill.type = "button";
+        pulsePill.className = "topbar-pulse";
+        pulsePill.dataset.skipLoading = "true";
+        pulsePill.title = "Cek status koneksi & sinkronisasi data";
+        pulsePill.innerHTML = `<span class="topbar-pulse-dot"></span><span>Live Sync</span>`;
+        pulsePill.addEventListener("click", async function () {
+            if (pulsePill.dataset.syncing === "true") return;
+            pulsePill.dataset.syncing = "true";
+            try {
+                if (typeof window.loadDatabase === "function") {
+                    await window.loadDatabase();
+                }
+                if (typeof window.refreshApp === "function") {
+                    window.refreshApp();
+                }
+                if (typeof window.syncShellCounters === "function") {
+                    window.syncShellCounters();
+                }
+                const karTotal = Array.isArray(window.karyawan) ? window.karyawan.length : 0;
+                const planTotal = Array.isArray(window.planning) ? window.planning.length : 0;
+                notifyShell(
+                    "success",
+                    "Live Sync Aktif",
+                    `Tersinkron (${karTotal} karyawan, ${planTotal} rencana lembur).`
+                );
+            } catch (err) {
+                console.error("Gagal Live Sync:", err);
+                notifyShell("error", "Sinkronisasi Gagal", err && err.message ? err.message : "Periksa koneksi database.");
+            } finally {
+                pulsePill.dataset.syncing = "false";
+            }
+        });
+
+        const refreshBtn = document.createElement("button");
+        refreshBtn.type = "button";
+        refreshBtn.className = "topbar-quick-btn teal";
+        refreshBtn.dataset.skipLoading = "true";
+        refreshBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg><span class="hide-sm">Muat Ulang</span>`;
+        refreshBtn.addEventListener("click", async function () {
+            if (refreshBtn.dataset.loading === "true") return;
+            refreshBtn.dataset.loading = "true";
+            refreshBtn.disabled = true;
+            refreshBtn.classList.add("is-spinning");
+            try {
+                if (typeof window.loadDatabase === "function") {
+                    await window.loadDatabase();
+                }
+                if (typeof window.refreshApp === "function") {
+                    window.refreshApp();
+                }
+                if (typeof tampilkanTanggal === "function") {
+                    tampilkanTanggal();
+                }
+                if (typeof window.syncShellCounters === "function") {
+                    window.syncShellCounters();
+                }
+                notifyShell("success", "Data Disegarkan", "Seluruh data dasbor berhasil dimuat ulang.");
+            } catch (err) {
+                console.error("Gagal memuat ulang:", err);
+                notifyShell("error", "Gagal Muat Ulang", err && err.message ? err.message : "Terjadi kesalahan memuat data.");
+            } finally {
+                refreshBtn.dataset.loading = "false";
+                refreshBtn.disabled = false;
+                refreshBtn.classList.remove("is-spinning");
+            }
+        });
+
+        const createBtn = document.createElement("button");
+        createBtn.type = "button";
+        createBtn.className = "topbar-quick-btn primary";
+        createBtn.dataset.skipLoading = "true";
+        createBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>Buat Planning</span>`;
+        createBtn.addEventListener("click", function () {
+            if (typeof window.openPlanningModal === "function") {
+                window.openPlanningModal();
+            } else {
+                notifyShell("error", "Form Belum Siap", "Tunggu sebentar hingga data selesai dimuat.");
+            }
+        });
+
+        rightWrap.appendChild(pulsePill);
+        rightWrap.appendChild(refreshBtn);
+        rightWrap.appendChild(createBtn);
+        if (dateNowEl) {
+            rightWrap.appendChild(dateNowEl);
+        }
+        topbar.appendChild(rightWrap);
+    }
+
+    const pageTitleBox = document.querySelector(".topbar .page-title");
+    if (pageTitleBox && !pageTitleBox.querySelector(".page-title-icon")) {
+        const titleH1 = document.getElementById("pageTitle");
+        const titleP = document.getElementById("pageSubtitle");
+        const textWrap = document.createElement("div");
+        if (titleH1) textWrap.appendChild(titleH1);
+        if (titleP) textWrap.appendChild(titleP);
+
+        const iconBox = document.createElement("div");
+        iconBox.className = "page-title-icon";
+        iconBox.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect></svg>`;
+
+        pageTitleBox.innerHTML = "";
+        pageTitleBox.appendChild(iconBox);
+        pageTitleBox.appendChild(textWrap);
+    }
+
+    if (window.lucide && document.querySelector("[data-lucide]")) {
+        try {
+            window.lucide.createIcons();
+        } catch (_) {}
+    }
+}
+
+function enhanceTableScrollControls() {
+    const wrappers = document.querySelectorAll(".table-wrapper");
+    if (!wrappers.length) return;
+
+    const pairs = [];
+    let rafUpdateScheduled = false;
+
+    function refreshAllScrollBars() {
+        rafUpdateScheduled = false;
+        pairs.forEach(function (entry) {
+            const { wrapper, bar, track, spacer } = entry;
+            if (!wrapper.isConnected || wrapper.offsetParent === null) {
+                bar.hidden = true;
+                return;
+            }
+            const table = wrapper.querySelector("table");
+            const contentWidth = table ? Math.max(wrapper.scrollWidth, table.scrollWidth) : wrapper.scrollWidth;
+            const clientWidth = wrapper.clientWidth;
+            const canScroll = clientWidth > 0 && contentWidth > clientWidth + 4;
+            bar.hidden = !canScroll;
+            if (canScroll) {
+                spacer.style.width = contentWidth + "px";
+                if (Math.abs(track.scrollLeft - wrapper.scrollLeft) > 2) {
+                    track.scrollLeft = wrapper.scrollLeft;
+                }
+            }
+        });
+    }
+
+    function scheduleRefresh() {
+        if (rafUpdateScheduled) return;
+        rafUpdateScheduled = true;
+        requestAnimationFrame(refreshAllScrollBars);
+    }
+
+    wrappers.forEach(function (wrapper) {
+        if (wrapper.dataset.hscrollReady === "true" || !wrapper.parentNode) return;
+        wrapper.dataset.hscrollReady = "true";
+
+        const bar = document.createElement("div");
+        bar.className = "table-hscroll-bar";
+        bar.hidden = true;
+        bar.innerHTML =
+            '<button type="button" class="table-hscroll-btn" data-dir="left" title="Geser tabel ke kiri" aria-label="Geser tabel ke kiri">&lsaquo;</button>' +
+            '<div class="table-hscroll-track"><div class="table-hscroll-spacer"></div></div>' +
+            '<button type="button" class="table-hscroll-btn" data-dir="right" title="Geser tabel ke kanan" aria-label="Geser tabel ke kanan">&rsaquo;</button>' +
+            '<span class="table-hscroll-hint">Geser kanan</span>';
+
+        wrapper.parentNode.insertBefore(bar, wrapper);
+
+        const track = bar.querySelector(".table-hscroll-track");
+        const spacer = bar.querySelector(".table-hscroll-spacer");
+        const leftBtn = bar.querySelector('[data-dir="left"]');
+        const rightBtn = bar.querySelector('[data-dir="right"]');
+
+        let lockSource = null;
+
+        track.addEventListener("scroll", function () {
+            if (lockSource === "wrapper") return;
+            lockSource = "track";
+            wrapper.scrollLeft = track.scrollLeft;
+            requestAnimationFrame(function () { lockSource = null; });
+        }, { passive: true });
+
+        wrapper.addEventListener("scroll", function () {
+            if (lockSource === "track") return;
+            lockSource = "wrapper";
+            track.scrollLeft = wrapper.scrollLeft;
+            requestAnimationFrame(function () { lockSource = null; });
+        }, { passive: true });
+
+        if (leftBtn) {
+            leftBtn.addEventListener("click", function () {
+                wrapper.scrollBy({ left: -240, behavior: "smooth" });
+            });
+        }
+        if (rightBtn) {
+            rightBtn.addEventListener("click", function () {
+                wrapper.scrollBy({ left: 240, behavior: "smooth" });
+            });
+        }
+
+        pairs.push({ wrapper, bar, track, spacer });
     });
 
-    window.lucide.createIcons();
+    if (typeof ResizeObserver === "function") {
+        const ro = new ResizeObserver(scheduleRefresh);
+        pairs.forEach(function (entry) {
+            ro.observe(entry.wrapper);
+            const tbl = entry.wrapper.querySelector("table");
+            if (tbl) ro.observe(tbl);
+        });
+    }
+
+    const pages = document.querySelectorAll(".page");
+    if (pages.length && typeof MutationObserver === "function") {
+        const pageObserver = new MutationObserver(scheduleRefresh);
+        pages.forEach(function (pageEl) {
+            pageObserver.observe(pageEl, { attributes: true, attributeFilter: ["class"] });
+        });
+    }
+
+    window.addEventListener("resize", scheduleRefresh, { passive: true });
+    window.refreshTableScrollBars = scheduleRefresh;
+    scheduleRefresh();
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    let iconUpdateQueued = false;
-
+    enhanceShellChrome();
+    enhanceTableScrollControls();
     enhanceButtonIcons();
 
-    new MutationObserver(function () {
-        if (iconUpdateQueued) {
-            return;
-        }
+    const pendingRoots = new Set();
+    let flushScheduled = false;
+    let tableRowsAdded = false;
 
-        iconUpdateQueued = true;
-        requestAnimationFrame(function () {
-            enhanceButtonIcons();
-            iconUpdateQueued = false;
+    function flushPendingButtonIcons() {
+        flushScheduled = false;
+        const hadTableRows = tableRowsAdded;
+        tableRowsAdded = false;
+        pendingRoots.forEach(function (node) {
+            if (node && node.isConnected) {
+                enhanceButtonIcons(node);
+            }
         });
+        pendingRoots.clear();
+        if (hadTableRows && typeof window.refreshTableScrollBars === "function") {
+            window.refreshTableScrollBars();
+        }
+        if (typeof window.syncShellCounters === "function") {
+            window.syncShellCounters();
+        }
+    }
+
+    new MutationObserver(function (mutations) {
+        let added = false;
+        for (let i = 0; i < mutations.length; i++) {
+            const addedNodes = mutations[i].addedNodes;
+            for (let j = 0; j < addedNodes.length; j++) {
+                const node = addedNodes[j];
+                if (
+                    node.nodeType === 1 &&
+                    !node.matches("svg, path, circle, line, rect, polyline, polygon, i[data-lucide], .table-hscroll-bar")
+                ) {
+                    const isRow = node.matches("tr");
+                    if (isRow || node.matches("button") || node.querySelector("button")) {
+                        pendingRoots.add(node);
+                        if (isRow) tableRowsAdded = true;
+                        added = true;
+                    }
+                }
+            }
+        }
+        if (added && !flushScheduled) {
+            flushScheduled = true;
+            requestAnimationFrame(flushPendingButtonIcons);
+        }
     }).observe(document.body, { childList: true, subtree: true });
 });
 
@@ -3868,21 +4399,93 @@ console.log(
         return "Halo, Selamat Malam! 🌙";
     }
 
+    let lastGreetingTitle = "";
+    let lastDateString = "";
+    let lastClockString = "";
+    let lastShiftString = "";
+    let lastPlanCount = "";
+    let lastKarCount = "";
+
+    function syncSidebarAndNavCounters() {
+        if (Array.isArray(window.planning)) {
+            const planCount = String(window.planning.length);
+            if (planCount !== lastPlanCount) {
+                lastPlanCount = planCount;
+                const navPlan = document.getElementById("navPlanningCount");
+                const mobNavPlan = document.getElementById("mobileNavPlanningCount");
+                const sidePlan = document.getElementById("sidebarStatPlanning");
+                if (navPlan) navPlan.textContent = planCount;
+                if (mobNavPlan) mobNavPlan.textContent = planCount;
+                if (sidePlan) sidePlan.textContent = planCount;
+            }
+        }
+
+        if (Array.isArray(window.karyawan)) {
+            let aktif = 0;
+            for (let i = 0; i < window.karyawan.length; i++) {
+                const k = window.karyawan[i];
+                if (k && k.status !== "PENALTI" && !k.isDeleted) aktif++;
+            }
+            const karCount = String(aktif || window.karyawan.length);
+            if (karCount !== lastKarCount) {
+                lastKarCount = karCount;
+                const navKar = document.getElementById("navKaryawanCount");
+                const mobNavKar = document.getElementById("mobileNavKaryawanCount");
+                const sideKar = document.getElementById("sidebarStatKaryawan");
+                if (navKar) navKar.textContent = karCount;
+                if (mobNavKar) mobNavKar.textContent = karCount;
+                if (sideKar) sideKar.textContent = karCount;
+            }
+        }
+    }
+
     function updateLiveClock() {
+        if (document.hidden || document.documentElement.classList.contains("access-locked")) {
+            return;
+        }
+
         const now = new Date();
+        const hour = now.getHours();
+        const shiftText = hour >= 6 && hour < 14
+            ? "Shift 1 • 06:00 - 14:00"
+            : hour >= 14 && hour < 22
+                ? "Shift 2 • 14:00 - 22:00"
+                : "Shift 3 • 22:00 - 06:00";
+
+        if (shiftText !== lastShiftString) {
+            lastShiftString = shiftText;
+            const mobileShiftEl = document.getElementById("mobileShiftChip");
+            if (mobileShiftEl) {
+                mobileShiftEl.textContent = shiftText.split("•")[0].trim();
+            }
+        }
+
+        const dashboardSection = document.getElementById("dashboard");
+        if (!dashboardSection || !dashboardSection.classList.contains("active-page")) {
+            return;
+        }
+
         const timeEl = document.getElementById("helloLiveTime");
         const titleEl = document.getElementById("helloGreetingTitle");
         const dateEl = document.getElementById("helloCurrentDateBadge");
 
         if (timeEl) {
-            const h = String(now.getHours()).padStart(2, "0");
+            const h = String(hour).padStart(2, "0");
             const m = String(now.getMinutes()).padStart(2, "0");
             const s = String(now.getSeconds()).padStart(2, "0");
-            timeEl.textContent = h + ":" + m + ":" + s + " WIB";
+            const fullClock = h + ":" + m + ":" + s + " WIB";
+            if (fullClock !== lastClockString) {
+                lastClockString = fullClock;
+                timeEl.textContent = fullClock;
+            }
         }
 
         if (titleEl && !titleEl.dataset.customText) {
-            titleEl.textContent = getTimeGreeting();
+            const greeting = getTimeGreeting();
+            if (greeting !== lastGreetingTitle) {
+                lastGreetingTitle = greeting;
+                titleEl.textContent = greeting;
+            }
         }
 
         if (dateEl) {
@@ -3891,48 +4494,11 @@ console.log(
                 "Januari", "Februari", "Maret", "April", "Mei", "Juni",
                 "Juli", "Agustus", "September", "Oktober", "November", "Desember"
             ];
-            dateEl.textContent = days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear();
-        }
-
-        // Live Sidebar Widget Update
-        const sidebarClockEl = document.getElementById("sidebarLiveClock");
-        const sidebarShiftEl = document.getElementById("sidebarShiftText");
-        if (sidebarClockEl) {
-            const h = String(now.getHours()).padStart(2, "0");
-            const m = String(now.getMinutes()).padStart(2, "0");
-            const s = String(now.getSeconds()).padStart(2, "0");
-            sidebarClockEl.textContent = h + ":" + m + ":" + s + " WIB";
-        }
-        if (sidebarShiftEl) {
-            const hour = now.getHours();
-            if (hour >= 6 && hour < 14) {
-                sidebarShiftEl.textContent = "Shift 1 • 06:00 - 14:00";
-            } else if (hour >= 14 && hour < 22) {
-                sidebarShiftEl.textContent = "Shift 2 • 14:00 - 22:00";
-            } else {
-                sidebarShiftEl.textContent = "Shift 3 • 22:00 - 06:00";
+            const dateStr = days[now.getDay()] + ", " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear();
+            if (dateStr !== lastDateString) {
+                lastDateString = dateStr;
+                dateEl.textContent = dateStr;
             }
-        }
-        const navPlan = document.getElementById("navPlanningCount");
-        const mobNavPlan = document.getElementById("mobileNavPlanningCount");
-        if (Array.isArray(window.planning)) {
-            const planCount = String(window.planning.length);
-            if (navPlan) navPlan.textContent = planCount;
-            if (mobNavPlan) mobNavPlan.textContent = planCount;
-        }
-
-        const navKar = document.getElementById("navKaryawanCount");
-        const mobNavKar = document.getElementById("mobileNavKaryawanCount");
-        if (Array.isArray(window.karyawan)) {
-            const aktif = window.karyawan.filter(k => k.status !== "PENALTI" && !k.isDeleted).length;
-            const karCount = String(aktif || window.karyawan.length);
-            if (navKar) navKar.textContent = karCount;
-            if (mobNavKar) mobNavKar.textContent = karCount;
-        }
-
-        const mobileShiftEl = document.getElementById("mobileShiftChip");
-        if (mobileShiftEl && sidebarShiftEl) {
-            mobileShiftEl.textContent = sidebarShiftEl.textContent.split("•")[0].trim();
         }
     }
 
@@ -3970,9 +4536,22 @@ console.log(
         }
     };
 
+    window.syncShellCounters = function () {
+        syncSidebarAndNavCounters();
+        updateLiveClock();
+    };
+
     function initGreeting() {
+        syncSidebarAndNavCounters();
         updateLiveClock();
         setInterval(updateLiveClock, 1000);
+        setInterval(syncSidebarAndNavCounters, 15000);
+        document.addEventListener("visibilitychange", function () {
+            if (!document.hidden) {
+                syncSidebarAndNavCounters();
+                updateLiveClock();
+            }
+        });
     }
 
     if (document.readyState === "loading") {
@@ -3980,4 +4559,140 @@ console.log(
     } else {
         initGreeting();
     }
+})();
+
+/* =========================================================
+   TACTILE COLOR CLICK RIPPLE & GLOW FEEDBACK
+========================================================= */
+(function initClickColorEffects() {
+    "use strict";
+
+    if (typeof document === "undefined" || window.__daysheetClickEffectsBound) return;
+    window.__daysheetClickEffectsBound = true;
+
+    const CLICK_TARGET_SELECTOR = [
+        ".menu-item",
+        ".mobile-nav-item",
+        ".topbar-pulse",
+        ".topbar-quick-btn",
+        ".planning-chip",
+        ".btn-primary",
+        ".btn-secondary",
+        ".btn-cancel",
+        ".btn-small",
+        ".btn-history",
+        ".btn-delete",
+        ".btn-penalty",
+        ".btn-preview-planning",
+        ".btn-cetak-spl",
+        ".planning-btn",
+        ".planning-file-btn",
+        ".btn-hapus-bulk-header",
+        ".btn-batal-bulk-header",
+        ".sidebar-portal-btn",
+        ".sidebar-daysheet-badge",
+        ".hello-chip.chip-interactive",
+        ".hello-mascot-card",
+        ".stat-card",
+        ".planning-stat-card",
+        ".summary-card",
+        ".access-submit"
+    ].join(", ");
+
+    const CLICK_COLOR_THEMES = [
+        {
+            match: ".btn-delete, .planning-btn-hapus, .planning-file-delete, .btn-hapus-bulk-header, .stats-grid .stat-card:nth-child(4), .planning-summary-grid .planning-stat-card:nth-child(4), .karyawan-summary .summary-card:last-child, .summary-card.penalty",
+            ripple: "rgba(239, 68, 68, 0.30)",
+            ring: "rgba(239, 68, 68, 0.24)"
+        },
+        {
+            match: ".btn-penalty, .btn-cetak-spl, .planning-btn-edit, .stats-grid .stat-card:nth-child(3), .planning-summary-grid .planning-stat-card:nth-child(3), .summary-card.card-yellow, .summary-card.card-orange",
+            ripple: "rgba(245, 158, 11, 0.30)",
+            ring: "rgba(245, 158, 11, 0.24)"
+        },
+        {
+            match: ".topbar-pulse, .planning-btn-cetak, .planning-btn-download, .planning-file-download, .planning-file-upload.has-file, .stats-grid .stat-card:nth-child(2), .planning-summary-grid .planning-stat-card:nth-child(2), .summary-card.card-green, .karyawan-summary .summary-card:first-child",
+            ripple: "rgba(16, 185, 129, 0.30)",
+            ring: "rgba(16, 185, 129, 0.24)"
+        },
+        {
+            match: ".planning-file-upload",
+            ripple: "rgba(124, 58, 237, 0.28)",
+            ring: "rgba(124, 58, 237, 0.22)"
+        },
+        {
+            match: ".topbar-quick-btn.teal, .planning-btn-copy, .sidebar-daysheet-badge",
+            ripple: "rgba(6, 182, 212, 0.34)",
+            ring: "rgba(6, 182, 212, 0.26)"
+        },
+        {
+            match: ".btn-primary, .topbar-quick-btn.primary, .menu-item.active, .planning-chip.active, .access-submit",
+            ripple: "rgba(255, 255, 255, 0.38)",
+            ring: "rgba(59, 130, 246, 0.28)"
+        }
+    ];
+
+    const DEFAULT_CLICK_THEME = {
+        ripple: "rgba(37, 99, 235, 0.26)",
+        ring: "rgba(37, 99, 235, 0.22)"
+    };
+
+    function resolveClickTheme(target) {
+        for (let i = 0; i < CLICK_COLOR_THEMES.length; i++) {
+            if (target.matches(CLICK_COLOR_THEMES[i].match)) {
+                return CLICK_COLOR_THEMES[i];
+            }
+        }
+        return DEFAULT_CLICK_THEME;
+    }
+
+    function triggerClickEffect(e) {
+        if (e.button && e.button !== 0) return;
+        const origin = e.target;
+        if (!origin || typeof origin.closest !== "function") return;
+        if (origin.closest("input, select, textarea")) return;
+
+        const target = origin.closest(CLICK_TARGET_SELECTOR);
+        if (!target || target.disabled || target.getAttribute("aria-disabled") === "true") return;
+
+        const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const theme = resolveClickTheme(target);
+
+        target.style.setProperty("--ui-click-ring", theme.ring);
+        target.classList.add("ui-click-flash");
+        clearTimeout(target.__uiFlashTimer);
+        target.__uiFlashTimer = setTimeout(function () {
+            target.classList.remove("ui-click-flash");
+        }, 220);
+
+        if (reducedMotion) return;
+
+        const rect = target.getBoundingClientRect();
+        if (!rect || (rect.width === 0 && rect.height === 0)) return;
+
+        const oldRipple = target.querySelector(":scope > .ui-click-ripple");
+        if (oldRipple) oldRipple.remove();
+
+        const hasCoords = typeof e.clientX === "number" && typeof e.clientY === "number" && (e.clientX !== 0 || e.clientY !== 0);
+        const x = hasCoords ? (e.clientX - rect.left) : (rect.width / 2);
+        const y = hasCoords ? (e.clientY - rect.top) : (rect.height / 2);
+        const size = Math.max(rect.width, rect.height, 48) * 2.2;
+
+        const ripple = document.createElement("span");
+        ripple.className = "ui-click-ripple";
+        ripple.setAttribute("aria-hidden", "true");
+        ripple.style.setProperty("--ripple-x", x + "px");
+        ripple.style.setProperty("--ripple-y", y + "px");
+        ripple.style.setProperty("--ripple-size", size + "px");
+        ripple.style.setProperty("--ripple-color", theme.ripple);
+
+        const cleanup = function () {
+            if (ripple.parentNode) ripple.remove();
+        };
+        ripple.addEventListener("animationend", cleanup, { once: true });
+        target.appendChild(ripple);
+        setTimeout(cleanup, 500);
+    }
+
+    document.addEventListener("pointerdown", triggerClickEffect, { passive: true });
 })();

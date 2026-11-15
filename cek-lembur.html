@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <title>Cek Planning Lembur Karyawan - LINFOX</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -43,7 +43,6 @@
         /* =========================================================
            DESIGN SYSTEM - LINFOX PREMIUM ELEGANT
         ========================================================= */
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
         :root {
             /* Color Palette */
@@ -267,48 +266,42 @@
         .hero {
             position: relative;
             overflow: hidden;
-            padding: 48px 56px;
-            margin-bottom: 32px;
+            padding: 40px 48px;
+            margin-bottom: 28px;
             border-radius: var(--radius-2xl);
-            color: white;
-            background: linear-gradient(135deg, #0d0820 0%, #1e1b4b 25%, #312e81 50%, #7c3aed 75%, #9f1239 100%);
-            box-shadow: var(--shadow-elevated), inset 0 1px 0 rgba(255,255,255,0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            color: #ffffff;
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 48%, #4f46e5 100%);
+            box-shadow: 0 20px 44px rgba(37, 99, 235, 0.24), inset 0 1px 0 rgba(255,255,255,0.18);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
         
         .hero:hover {
             transform: translateY(-2px);
-            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+            box-shadow: 0 24px 50px rgba(37, 99, 235, 0.3);
         }
 
         .hero::before {
             content: "";
             position: absolute;
-            width: 400px;
-            height: 400px;
-            right: -100px;
-            top: -150px;
-            background: radial-gradient(circle, rgba(167,139,250,0.5) 0%, rgba(225,29,72,0.3) 60%, transparent 80%);
+            width: 380px;
+            height: 380px;
+            right: -90px;
+            top: -140px;
+            background: radial-gradient(circle, rgba(255,255,255,0.22) 0%, rgba(147,197,253,0.12) 60%, transparent 80%);
             border-radius: 50%;
             pointer-events: none;
-            animation: pulse-glow 8s ease-in-out infinite alternate;
         }
         
         .hero::after {
             content: "";
             position: absolute;
-            width: 300px;
-            height: 300px;
-            left: -50px;
-            bottom: -150px;
-            background: radial-gradient(circle, rgba(59,130,246,0.4) 0%, rgba(139,92,246,0.2) 60%, transparent 80%);
+            width: 280px;
+            height: 280px;
+            left: -60px;
+            bottom: -140px;
+            background: radial-gradient(circle, rgba(99,102,241,0.35) 0%, rgba(14,165,233,0.14) 60%, transparent 80%);
             border-radius: 50%;
             pointer-events: none;
-        }
-
-        @keyframes pulse-glow {
-            0% { transform: scale(1) translate(0, 0); opacity: 0.5; }
-            100% { transform: scale(1.2) translate(-20px, 20px); opacity: 0.8; }
         }
 
         .hero-content {
@@ -353,15 +346,14 @@
            GLASS CARD (SEARCH)
         ========================================================== */
         .search-card {
-            padding: 36px;
+            padding: 34px;
             margin-bottom: 32px;
             background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
             border-radius: var(--radius-2xl);
             box-shadow: var(--shadow-card);
             position: relative;
+            overflow: hidden;
             z-index: 5;
         }
 
@@ -369,30 +361,32 @@
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
-            gap: 24px;
-            margin-bottom: 30px;
-            padding-bottom: 24px;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 26px;
+            padding-bottom: 22px;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
         }
 
         .search-title {
             display: flex;
             align-items: center;
             gap: 16px;
+            min-width: 0;
         }
 
         .search-icon {
-            width: 52px;
-            height: 52px;
+            width: 50px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
             border-radius: var(--radius-lg);
-            background: linear-gradient(135deg, var(--red-light), #ffe4e6);
-            color: var(--red-primary);
-            font-size: 24px;
-            box-shadow: 0 4px 10px rgba(225, 29, 72, 0.1);
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+            color: #2563eb;
+            font-size: 22px;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
         }
 
         .search-title h2 {
@@ -629,6 +623,7 @@
             top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(rgba(255,255,255,0.2), transparent);
             opacity: 0;
+            pointer-events: none;
             transition: opacity 0.3s ease;
         }
 
@@ -720,6 +715,7 @@
             inset: -4px;
             border: 2px solid rgba(225, 29, 72, 0.2);
             border-radius: calc(var(--radius-lg) + 4px);
+            pointer-events: none;
         }
 
         .profile-name {
@@ -803,6 +799,7 @@
             position: absolute;
             top: 0; left: 0; width: 100%; height: 4px;
             background: transparent;
+            pointer-events: none;
             transition: background 0.3s;
         }
 
@@ -1386,9 +1383,16 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 12px;
+            flex-shrink: 0;
             padding: 24px 32px;
             border-bottom: 1px solid var(--border-color);
             background: var(--bg-body);
+        }
+
+        .photo-header > div {
+            min-width: 0;
+            flex: 1;
         }
 
         .photo-header h4 {
@@ -1399,7 +1403,7 @@
 
         .photo-url {
             margin-top: 4px;
-            max-width: 500px;
+            max-width: 100%;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -1410,6 +1414,7 @@
         .close-photo {
             width: 40px;
             height: 40px;
+            flex-shrink: 0;
             border-radius: 50%;
             border: 1px solid var(--border-color);
             background: white;
@@ -1435,6 +1440,7 @@
             background: #f8fafc;
             text-align: center;
             overflow: auto;
+            min-height: min(360px, 45vh);
             max-height: calc(100vh - 200px);
             display: flex;
             align-items: center;
@@ -1453,6 +1459,7 @@
             display: flex;
             justify-content: flex-end;
             align-items: center;
+            flex-shrink: 0;
             gap: 12px;
             padding: 20px 32px;
             border-top: 1px solid var(--border-color);
@@ -1528,12 +1535,14 @@
             -webkit-backdrop-filter: blur(12px);
             opacity: 0;
             visibility: hidden;
+            pointer-events: none;
             transition: opacity 0.3s ease, visibility 0.3s ease;
         }
 
         .search-loading-overlay.active {
             opacity: 1;
             visibility: visible;
+            pointer-events: auto;
         }
 
         .search-loading-card {
@@ -1616,71 +1625,93 @@
             .hero { padding: 32px 24px; }
             .hero-logo { width: 120px; right: 10px; opacity: 0.03; }
             .search-card { padding: 24px 20px; }
+            .form-actions { flex-direction: column-reverse; gap: 10px; }
+            .form-actions .btn { width: 100%; min-width: 0; }
             .table-card { border-radius: var(--radius-lg); }
         }
 
     
-        /* Stat card color variants */
-        .stats-grid .stat-card:nth-child(1) {
-            border-top: 3px solid transparent;
-            border-image: linear-gradient(90deg, #e11d48, transparent) 1;
+        /* Stat card color variants (clean border-radius + top accent) */
+        .stats-grid .stat-card {
+            position: relative;
+            overflow: hidden;
             border-radius: var(--radius-2xl);
+        }
+        .stats-grid .stat-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3.5px;
+            pointer-events: none;
+        }
+        .stats-grid .stat-card:nth-child(1)::before {
+            background: linear-gradient(90deg, #2563eb, #6366f1);
         }
         .stats-grid .stat-card:nth-child(1):hover {
-            box-shadow: 0 16px 40px rgba(225, 29, 72, 0.12), var(--shadow-elevated);
+            box-shadow: 0 16px 36px rgba(37, 99, 235, 0.12), var(--shadow-elevated);
         }
 
-        .stats-grid .stat-card:nth-child(2) {
-            border-top: 3px solid transparent;
-            border-image: linear-gradient(90deg, #10b981, transparent) 1;
-            border-radius: var(--radius-2xl);
+        .stats-grid .stat-card:nth-child(2)::before {
+            background: linear-gradient(90deg, #10b981, #059669);
         }
         .stats-grid .stat-card:nth-child(2):hover {
-            box-shadow: 0 16px 40px rgba(16, 185, 129, 0.12), var(--shadow-elevated);
+            box-shadow: 0 16px 36px rgba(16, 185, 129, 0.12), var(--shadow-elevated);
         }
         .stats-grid .stat-card:nth-child(2) .stat-value { color: #047857; }
 
-        .stats-grid .stat-card:nth-child(3) {
-            border-top: 3px solid transparent;
-            border-image: linear-gradient(90deg, #3b82f6, transparent) 1;
-            border-radius: var(--radius-2xl);
+        .stats-grid .stat-card:nth-child(3)::before {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
         }
         .stats-grid .stat-card:nth-child(3):hover {
-            box-shadow: 0 16px 40px rgba(59, 130, 246, 0.12), var(--shadow-elevated);
+            box-shadow: 0 16px 36px rgba(245, 158, 11, 0.12), var(--shadow-elevated);
         }
-        .stats-grid .stat-card:nth-child(3) .stat-value { color: #1d4ed8; }
+        .stats-grid .stat-card:nth-child(3) .stat-value { color: #b45309; }
 
-        .stats-grid .stat-card:nth-child(4) {
-            border-top: 3px solid transparent;
-            border-image: linear-gradient(90deg, #8b5cf6, transparent) 1;
-            border-radius: var(--radius-2xl);
+        .stats-grid .stat-card:nth-child(4)::before {
+            background: linear-gradient(90deg, #ef4444, #f43f5e);
         }
         .stats-grid .stat-card:nth-child(4):hover {
-            box-shadow: 0 16px 40px rgba(139, 92, 246, 0.12), var(--shadow-elevated);
+            box-shadow: 0 16px 36px rgba(239, 68, 68, 0.12), var(--shadow-elevated);
         }
-        .stats-grid .stat-card:nth-child(4) .stat-value { color: #6d28d9; }
+        .stats-grid .stat-card:nth-child(4) .stat-value { color: #b91c1c; }
 
         /* Search card top accent */
-        .search-card {
-            border-top: 3px solid transparent;
-            border-image: linear-gradient(90deg, #8b5cf6, #3b82f6, #10b981) 1;
+        .search-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3.5px;
+            background: linear-gradient(90deg, #2563eb, #4f46e5, #10b981);
+            pointer-events: none;
         }
 
-        /* Analytics title line - purple */
+        .btn-submit {
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28) !important;
+        }
+        .btn-submit:hover {
+            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.36) !important;
+        }
+
+        /* Analytics title line - royal blue-indigo */
         .analytics-line {
-            background: linear-gradient(180deg, #8b5cf6, #3b82f6);
+            background: linear-gradient(180deg, #2563eb, #4f46e5);
         }
 
         /* Table title line */
         .table-title-line {
-            background: linear-gradient(180deg, #8b5cf6, #e11d48);
+            background: linear-gradient(180deg, #2563eb, #10b981);
         }
 
-        /* Period badge - purple tint */
+        /* Period badge - clean blue tint */
         .period-badge {
-            background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-            border-color: rgba(139, 92, 246, 0.25);
-            color: #6d28d9;
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #1d4ed8;
         }
 
         </style>
@@ -1998,7 +2029,7 @@
 
     <!-- FOOTER -->
     <footer>
-        © 2026 PT Linfox Logistics Indonesia — Sistem Informasi Planning Lembur
+        © 2026 PT Linfox Logistics Indonesia — Sistem Informasi Planning Lembur · Powered by <a href="https://daysheet.id" target="_blank" rel="noopener noreferrer" style="color:#0284c7;font-weight:700;text-decoration:none;">daysheet.id</a>
     </footer>
 
     <!-- SCRIPT (Logika & Integrasi tetap dipertahankan utuh) -->
@@ -2395,7 +2426,7 @@
             btnSpinner.style.display = "inline-block";
             btnText.textContent = "Mencari data...";
             const loadingStartedAt = Date.now();
-            const minimumLoadingTime = 1400;
+            const minimumLoadingTime = 120;
             let resultReady = false;
 
             resultSection.classList.add("preparing");
@@ -2618,12 +2649,14 @@
             }
 
             if (!cekLemburBlobCache.has(safeUrl) && (safeUrl.startsWith("http://") || safeUrl.startsWith("https://"))) {
-                let prefetchUrl = safeUrl;
                 const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || window.PlanburEnv?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
-                const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
-                const fetchHeaders = (supabaseKey && (safeUrl.includes("supabase.co") || prefetchUrl.includes("/supabase"))) ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey } : {};
-                if (safeUrl.includes(supabaseBase)) prefetchUrl = safeUrl.replace(supabaseBase, window.location.origin + "/supabase");
-                fetch(prefetchUrl, { cache: "force-cache", headers: fetchHeaders }).then(r => r.ok ? r.blob() : null).then(b => { if (b) cekLemburBlobCache.set(safeUrl, b); }).catch(() => {});
+                const prefetchUrl = safeUrl.includes(supabaseBase)
+                    ? safeUrl.replace(supabaseBase, window.location.origin + "/supabase")
+                    : safeUrl;
+                fetch(prefetchUrl, { cache: "force-cache" })
+                    .then(r => r.ok ? r.blob() : null)
+                    .then(b => { if (b) cekLemburBlobCache.set(safeUrl, b); })
+                    .catch(() => {});
             }
 
             photoModal.classList.add("active");
@@ -2649,7 +2682,7 @@
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
-                setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+                setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
                 return;
             }
 
@@ -2660,25 +2693,28 @@
             try {
                 let blob = null;
                 try {
-                    let fetchUrl = url;
                     const supabaseBase = window.__PLANBUR_ENV__?.SUPABASE_URL || window.PlanburEnv?.SUPABASE_URL || "https://msthucqijrjmmntsdscm.supabase.co";
-                    const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
-                    const fetchHeaders = (supabaseKey && (url.includes("supabase.co") || fetchUrl.includes("/supabase"))) ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey } : {};
-                    if (typeof url === "string" && url.includes(supabaseBase)) {
-                        fetchUrl = url.replace(supabaseBase, window.location.origin + "/supabase");
+                    const proxyUrl = typeof url === "string" && url.includes(supabaseBase)
+                        ? url.replace(supabaseBase, window.location.origin + "/supabase")
+                        : null;
+                    if (proxyUrl) {
+                        const resp = await fetch(proxyUrl, { cache: "force-cache" });
+                        if (resp.ok) {
+                            blob = await resp.blob();
+                        }
                     }
-                    const resp = await fetch(fetchUrl, { cache: "force-cache", headers: fetchHeaders });
-                    if (resp.ok) {
-                        blob = await resp.blob();
-                    } else if (fetchUrl !== url) {
-                        const directResp = await fetch(url, { cache: "force-cache", headers: fetchHeaders });
+                    if (!blob) {
+                        const isPublicAsset = url.includes("/storage/v1/object/public/");
+                        const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "";
+                        const headers = (!isPublicAsset && supabaseKey && url.includes("supabase.co"))
+                            ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey }
+                            : undefined;
+                        const directResp = await fetch(url, headers ? { cache: "force-cache", headers } : { cache: "force-cache" });
                         if (directResp.ok) blob = await directResp.blob();
                     }
                 } catch (_) {
                     try {
-                        const supabaseKey = window.__PLANBUR_ENV__?.SUPABASE_ANON_KEY || window.PlanburEnv?.SUPABASE_ANON_KEY || "sb_publishable_-mgfP8xp-YlJDNmHtmonZw_nN0CR8gz";
-                        const fetchHeaders = (supabaseKey && url.includes("supabase.co")) ? { apikey: supabaseKey, Authorization: "Bearer " + supabaseKey } : {};
-                        const directResp = await fetch(url, { cache: "force-cache", headers: fetchHeaders });
+                        const directResp = await fetch(url, { cache: "force-cache" });
                         if (directResp.ok) blob = await directResp.blob();
                     } catch (_) {}
                 }
@@ -2813,6 +2849,16 @@
                 doc.text("PT LINFOX LOGISTICS INDONESIA", 42, 17);
                 doc.setFontSize(11);
                 doc.text("Laporan Riwayat Lembur Karyawan", 42, 24);
+
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(8.5);
+                doc.setTextColor(51, 65, 85);
+                doc.text("Copyright © Daysheet.id", pageWidth - 14, 17, { align: "right" });
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(7.5);
+                doc.setTextColor(100, 116, 139);
+                doc.text("https://daysheet.id", pageWidth - 14, 22.5, { align: "right" });
+                doc.setTextColor(15, 23, 42);
 
                 doc.setDrawColor(226, 232, 240);
                 doc.line(14, 37, pageWidth - 14, 37);

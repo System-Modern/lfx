@@ -10,11 +10,12 @@
         content="width=device-width, initial-scale=1.0"
     >
 
+    <link rel="icon" type="image/png" href="Logo.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <title>Planning Lembur - LINFOX</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -43,8 +44,8 @@
          SUPABASE CDN
     ====================================================== -->
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="env.js?v=20261016-v12"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="env.js?v=20261016-v12"></script>
 
 
 
@@ -54,20 +55,20 @@
          CHART JS
     ====================================================== -->
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 
     <!-- =====================================================
          JSPDF
     ====================================================== -->
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
 
     <!-- =====================================================
@@ -76,7 +77,7 @@
 
     <link
         rel="stylesheet"
-        href="style.css?v=20261021-multiselect-fix"
+        href="style.css?v=20261115-fix6"
     >
 
     <style>
@@ -90,92 +91,8 @@
             visibility: hidden !important;
         }
 
-        #accessGate {
-            position: fixed;
-            inset: 0;
-            z-index: 2147483647;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            background: linear-gradient(145deg, #17191f, #3b1013);
-            font-family: Arial, sans-serif;
-        }
-
         html:not(.access-locked) #accessGate {
-            display: none;
-        }
-
-        .access-card {
-            width: min(390px, 100%);
-            padding: 30px;
-            border: 1px solid rgba(255, 255, 255, .12);
-            border-radius: 18px;
-            background: rgba(255, 255, 255, .98);
-            box-shadow: 0 24px 70px rgba(0, 0, 0, .38);
-        }
-
-        .access-card h1 {
-            margin: 0 0 8px;
-            color: #17191f;
-            font-size: 23px;
-        }
-
-        .access-card p {
-            margin: 0 0 22px;
-            color: #667085;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        .access-card label {
-            display: block;
-            margin-bottom: 7px;
-            color: #344054;
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .access-card input {
-            width: 100%;
-            box-sizing: border-box;
-            height: 44px;
-            padding: 0 13px;
-            border: 1px solid #d0d5dd;
-            border-radius: 10px;
-            outline: none;
-            font-size: 15px;
-        }
-
-        .access-card input:focus {
-            border-color: #d71920;
-            box-shadow: 0 0 0 3px rgba(215, 25, 32, .12);
-        }
-
-        .access-submit {
-            width: 100%;
-            height: 43px;
-            margin-top: 14px;
-            border: 0;
-            border-radius: 10px;
-            background: #d71920;
-            color: #fff;
-            font-size: 13px;
-            font-weight: 800;
-            cursor: pointer;
-        }
-
-        .access-submit:disabled {
-            opacity: .65;
-            cursor: wait;
-        }
-
-        #accessError {
-            min-height: 18px;
-            margin: 10px 0 0;
-            color: #b42318;
-            font-size: 12px;
-            font-weight: 700;
+            display: none !important;
         }
     </style>
 
@@ -266,16 +183,73 @@
         const errorBox = document.getElementById("accessError");
         const gate = document.getElementById("accessGate");
 
-        async function hashPassword(value) {
-            const data = new TextEncoder().encode(value);
-            const digest = await crypto.subtle.digest("SHA-256", data);
-
-            return Array.from(new Uint8Array(digest))
-                .map(function (byte) {
-                    return byte.toString(16).padStart(2, "0");
-                })
-                .join("");
+        function sha256Fallback(message) {
+            const bytes = new TextEncoder().encode(message);
+            const K = [
+                0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+                0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+                0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+                0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+                0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+                0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+                0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+            ];
+            const H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+            const bitLen = bytes.length * 8;
+            const paddedLen = Math.ceil((bytes.length + 9) / 64) * 64;
+            const padded = new Uint8Array(paddedLen);
+            padded.set(bytes);
+            padded[bytes.length] = 0x80;
+            const view = new DataView(padded.buffer);
+            view.setUint32(paddedLen - 8, Math.floor(bitLen / 0x100000000), false);
+            view.setUint32(paddedLen - 4, bitLen >>> 0, false);
+            const w = new Uint32Array(64);
+            for (let offset = 0; offset < paddedLen; offset += 64) {
+                for (let i = 0; i < 16; i++) w[i] = view.getUint32(offset + i * 4, false);
+                for (let i = 16; i < 64; i++) {
+                    const s0 = ((w[i - 15] >>> 7) | (w[i - 15] << 25)) ^ ((w[i - 15] >>> 18) | (w[i - 15] << 14)) ^ (w[i - 15] >>> 3);
+                    const s1 = ((w[i - 2] >>> 17) | (w[i - 2] << 15)) ^ ((w[i - 2] >>> 19) | (w[i - 2] << 13)) ^ (w[i - 2] >>> 10);
+                    w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+                }
+                let [a, b, c, d, e, f, g, h] = H;
+                for (let i = 0; i < 64; i++) {
+                    const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+                    const ch = (e & f) ^ ((~e) & g);
+                    const temp1 = (h + S1 + ch + K[i] + w[i]) >>> 0;
+                    const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+                    const maj = (a & b) ^ (a & c) ^ (b & c);
+                    const temp2 = (S0 + maj) >>> 0;
+                    h = g; g = f; f = e; e = (d + temp1) >>> 0;
+                    d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+                }
+                H[0] = (H[0] + a) >>> 0; H[1] = (H[1] + b) >>> 0; H[2] = (H[2] + c) >>> 0; H[3] = (H[3] + d) >>> 0;
+                H[4] = (H[4] + e) >>> 0; H[5] = (H[5] + f) >>> 0; H[6] = (H[6] + g) >>> 0; H[7] = (H[7] + h) >>> 0;
+            }
+            return Array.from(H).map(function (v) { return v.toString(16).padStart(8, "0"); }).join("");
         }
+
+        async function hashPassword(value) {
+            if (window.crypto && window.crypto.subtle && typeof window.crypto.subtle.digest === "function") {
+                const data = new TextEncoder().encode(value);
+                const digest = await window.crypto.subtle.digest("SHA-256", data);
+
+                return Array.from(new Uint8Array(digest))
+                    .map(function (byte) {
+                        return byte.toString(16).padStart(2, "0");
+                    })
+                    .join("");
+            }
+            return sha256Fallback(value);
+        }
+
+        window.addEventListener("pageshow", function () {
+            if (submitButton) submitButton.disabled = false;
+            const btnText = submitButton && submitButton.querySelector(".btn-text");
+            const btnLoading = submitButton && submitButton.querySelector(".btn-loading-state");
+            if (btnText) btnText.style.display = "inline-flex";
+            if (btnLoading) btnLoading.style.display = "none";
+        });
 
         form.addEventListener("submit", async function (event) {
             event.preventDefault();
@@ -343,13 +317,17 @@
 <header class="mobile-top-bar" id="mobileTopBar">
     <div class="mobile-brand">
         <div class="mobile-logo">
-            <img src="Logo.png" alt="LINFOX Logo">
+            <img src="Logo.png" alt="LINFOX Logo" width="28" height="28" decoding="async">
         </div>
         <div class="mobile-brand-title">
             <strong>PT LINFOX LOGISTICS</strong>
             <span class="mobile-brand-sub">PORTAL OPERASIONAL LEMBUR</span>
         </div>
     </div>
+    <a href="https://daysheet.id" target="_blank" rel="noopener noreferrer" class="mobile-daysheet-pill" title="Kunjungi https://daysheet.id">
+        <img src="logo-daysheet.png" alt="Daysheet.id" width="20" height="20" decoding="async">
+        <span>daysheet.id</span>
+    </a>
     <div class="mobile-status-chip">
         <span class="mobile-beacon"></span>
         <span id="mobileShiftChip">Shift Aktif</span>
@@ -376,9 +354,8 @@
 
         <div class="brand-info">
 
-            <strong>
-                PT LINFOX LOGISTICS INDONESIA
-            </strong>
+            <h2>Linfox Planbur</h2>
+            <span class="brand-tagline">PT LINFOX LOGISTICS</span>
 
         </div>
 
@@ -473,37 +450,49 @@
     </div>
 
     <!-- =================================================
-         SIDEBAR FOOTER & OPERATIONAL WIDGET (ELEGANT)
+         SIDEBAR FOOTER & OPERATIONAL SUMMARY
     ================================================== -->
     <div class="sidebar-bottom-panel">
         <div class="sidebar-status-card">
             <div class="status-card-header">
                 <div class="live-status-pill">
                     <span class="status-beacon"></span>
-                    <span class="status-beacon-glow"></span>
-                    <span>SISTEM AKTIF</span>
+                    <span>Cloud Sync Aktif</span>
                 </div>
                 <span class="version-chip">v2.4</span>
             </div>
-            <div class="status-card-body">
-                <div class="sidebar-clock-row">
-                    <div class="clock-icon">🕒</div>
-                    <div class="clock-details">
-                        <span class="sidebar-live-clock" id="sidebarLiveClock">--:--:-- WIB</span>
-                        <span class="sidebar-shift-text" id="sidebarShiftText">Shift Operasional</span>
-                    </div>
+            <div class="sidebar-mini-stats">
+                <div class="sidebar-mini-stat">
+                    <span class="mini-stat-label">Karyawan</span>
+                    <strong class="mini-stat-value" id="sidebarStatKaryawan">0</strong>
                 </div>
-                <div class="sidebar-sync-row">
-                    <span class="sync-icon">⚡</span>
-                    <span class="sync-text">Supabase Cloud Sync Ready</span>
+                <div class="sidebar-mini-stat">
+                    <span class="mini-stat-label">Planning</span>
+                    <strong class="mini-stat-value" id="sidebarStatPlanning">0</strong>
                 </div>
             </div>
         </div>
 
-        <div class="sidebar-brand-watermark">
-            <span class="watermark-accent"></span>
-            <span>LINFOX LOGISTICS ENTERPRISE</span>
+        <div class="sidebar-portal-actions">
+            <a href="cek-lembur.html" class="sidebar-portal-btn" title="Buka Portal Cek Lembur Karyawan">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+                <span>Portal Cek Lembur</span>
+            </a>
         </div>
+
+        <a href="https://daysheet.id" target="_blank" rel="noopener noreferrer" class="sidebar-daysheet-badge" title="Kunjungi https://daysheet.id">
+            <div class="daysheet-logo-box">
+                <img src="logo-daysheet.png" alt="Daysheet.id" width="28" height="28" decoding="async">
+            </div>
+            <div class="daysheet-meta">
+                <span>@copyright by</span>
+                <strong>daysheet.id</strong>
+            </div>
+        </a>
     </div>
 
 </aside>
@@ -1064,6 +1053,11 @@
         class="page"
     >
 
+        <div class="print-only-header">
+            <span>PT LINFOX LOGISTICS INDONESIA &bull; Laporan Riwayat Lembur Karyawan</span>
+            <strong>Copyright &copy; Daysheet.id</strong>
+        </div>
+
         <div class="card report-card">
 
             <div class="card-header">
@@ -1214,6 +1208,8 @@
                     </p>
 
                 </div>
+
+            </div>
 
             <div class="table-wrapper">
 
@@ -1696,14 +1692,7 @@
 
             <!-- FILTER PLANNING -->
 
-            <div
-                style="
-                    display:grid;
-                    grid-template-columns:repeat(2, 1fr);
-                    gap:12px;
-                    margin-bottom:18px;
-                "
-            >
+            <div class="planning-filter-grid">
 
                 <!-- FILTER TANGGAL -->
 
@@ -1978,14 +1967,18 @@
 
                     Website Design by
 
-                    <strong
+                    <a
+                        href="https://daysheet.id"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         style="
                             color:#111111;
                             font-weight:800;
+                            text-decoration:none;
                         "
                     >
-                        Daysheet
-                    </strong>
+                        daysheet.id
+                    </a>
 
                 </span>
 
@@ -2730,12 +2723,10 @@
 <!-- =====================================================
      JAVASCRIPT
 ====================================================== -->
-<script src="env.js?v=20261016-v12"></script>
-<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-<script src="database.js?v=20261016-v12"></script>
-<script src="karyawan.js?v=20261016-v12"></script>
-<script src="lembur.js?v=20261021-multiselect-fix"></script>
-<script src="app.js?v=20261016-v12"></script>
+<script defer src="database.js?v=20261115-fix6"></script>
+<script defer src="karyawan.js?v=20261115-fix6"></script>
+<script defer src="lembur.js?v=20261115-fix6"></script>
+<script defer src="app.js?v=20261115-fix6"></script>
 
 
 </body>
